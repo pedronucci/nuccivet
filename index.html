@@ -366,7 +366,7 @@ function emptyDB() {
   return {
     meta: { version: 1, updatedAt: new Date().toISOString(), device: uid() },
     config: {
-      nome: "Nuccivet Clínica Veterinária", cnpj: "", telefone: "", endereco: "",
+      nome: "Nuccivet Clínica Veterinária", cnpj: "", telefone: "", whatsapp: "", email: "", endereco: "",
       responsavel: "", crmv: "", abertura: "08:00", fechamento: "19:00",
       profissionais: ["Dr(a). Responsável", "Auxiliar", "Tosador(a)"],
       boxes: ["Box 1", "Box 2", "Box 3", "Box 4", "Isolamento", "Felinos 1", "Felinos 2"],
@@ -411,7 +411,11 @@ const Cloud = {
   active() { return !!(this.cfg && this.cfg.url && this.cfg.key); },
   setState(s, m) { this.state = s; this.msg = m; const d = $("#syncdot"), t = $("#syncmsg"); if (d) d.className = "dot " + (s === "on" ? "" : s === "err" ? "err" : "off"); if (t) t.textContent = m; },
   headers() { return { apikey: this.cfg.key, Authorization: "Bearer " + this.cfg.key, "Content-Type": "application/json" }; },
-  endpoint() { return this.cfg.url.replace(/\/+$/, "") + "/rest/v1/" + (this.cfg.tabela || "nuccivet"); },
+  endpoint() {
+    /* aceita a URL do projeto com ou sem /rest/v1 no fim */
+    const base = String(this.cfg.url || "").trim().replace(/\/+$/, "").replace(/\/rest\/v1$/i, "");
+    return base + "/rest/v1/" + (this.cfg.tabela || "nuccivet");
+  },
   async pull() {
     if (!this.active()) return null;
     const r = await fetch(this.endpoint() + "?id=eq." + encodeURIComponent(this.cfg.registro || "principal") + "&select=payload,updated_at", { headers: this.headers() });
@@ -1318,34 +1322,6 @@ function formAtendimento(id, defaults) {
     }
   });
 }
-function imprimirPrescricao(a) {
-  const p = Q.pet(a.petId), c = Q.cliente(a.clienteId), cfg = DB.config;
-  const w = window.open("", "_blank");
-  if (!w) { toast("Permita janelas pop-up para imprimir.", "err"); return; }
-  w.document.write('<html><head><title>Prescrição — ' + esc(p ? p.nome : "") + '</title><style>'
-    + 'body{font-family:Georgia,serif;max-width:720px;margin:36px auto;color:#222;line-height:1.55}'
-    + 'h1{font-size:20px;margin:0}h2{font-size:14px;letter-spacing:2px;text-transform:uppercase;color:#5C3A7B;border-bottom:2px solid #9BD9A8;padding-bottom:4px;margin:26px 0 10px}'
-    + '.hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #5C3A7B;padding-bottom:10px}'
-    + '.sm{font-size:12px;color:#666}pre{font-family:Georgia,serif;white-space:pre-wrap;font-size:15px}'
-    + '.sig{margin-top:60px;border-top:1px solid #333;width:300px;text-align:center;padding-top:5px;font-size:13px}'
-    + '.tip{background:#EFE7F5;border-left:4px solid #5C3A7B;padding:9px 12px;font-size:13px;font-family:system-ui,sans-serif;margin-bottom:22px;border-radius:6px}'
-    + '@media print{.tip{display:none}}</style></head><body>'
-    + '<div class="tip"><b>Para gerar o PDF:</b> na janela de impressão, escolha <b>Salvar como PDF</b> em “Destino”. '
-    + 'Depois assine o arquivo em assinador.iti.br com sua conta gov.br e volte ao atendimento para registrar o link.</div>'
-    + '<div class="hd"><div><h1>' + esc(cfg.nome) + '</h1><div class="sm">' + esc(cfg.endereco || "") + (cfg.telefone ? " · " + esc(cfg.telefone) : "") + '</div>'
-    + '<div class="sm">' + (cfg.crmv ? "CRMV " + esc(cfg.crmv) : "") + '</div></div><div class="sm">' + fmtD(a.data) + '</div></div>'
-    + '<h2>Identificação</h2><div><b>Paciente:</b> ' + esc(p ? p.nome : "") + ' — ' + esc(p ? (p.especie + ", " + (p.raca || "SRD") + ", " + idade(p.nascimento)) : "") + (a.peso ? ", " + a.peso + " kg" : "") + '<br>'
-    + '<b>Tutor(a):</b> ' + esc(c ? c.nome : "") + (c && c.cpf ? " — CPF " + esc(c.cpf) : "") + '</div>'
-    + (a.diagnostico ? '<h2>Diagnóstico</h2><div>' + esc(a.diagnostico) + '</div>' : "")
-    + '<h2>Prescrição e orientações</h2><pre>' + esc(a.prescricao || "—") + '</pre>'
-    + (a.retorno ? '<div class="sm" style="margin-top:14px"><b>Retorno:</b> ' + fmtD(a.retorno) + '</div>' : "")
-    + '<div class="sig">' + esc(a.profissional || cfg.responsavel || "Médico(a) Veterinário(a)") + (cfg.crmv ? "<br>CRMV " + esc(cfg.crmv) : "") + '</div>'
-    + (a.assinatura && a.assinatura !== "Não assinada" && a.assinatura !== "Assinada em papel"
-      ? '<div class="sm" style="margin-top:8px">Documento assinado eletronicamente — ' + esc(a.assinatura) + (a.assinadaEm ? " em " + fmtD(a.assinadaEm) : "") + '</div>' : "")
-    + '</body></html>');
-  w.document.close(); w.focus(); setTimeout(() => w.print(), 350);
-}
-
 /* ======================== BANHO & TOSA ======================== */
 ROUTES.banhotosa = function (v) {
   setTitle("Banho & Tosa", "Fila do dia, comandas e histórico");
@@ -1779,8 +1755,10 @@ ROUTES.config = function (v) {
     + '<div class="formgrid">'
     + '<div class="c8"><div class="field"><label for="cnome">Nome</label><input id="cnome" value="' + esc(c.nome) + '"></div></div>'
     + '<div class="c4"><div class="field"><label for="ctel">Telefone</label><input id="ctel" value="' + esc(c.telefone) + '"></div></div>'
-    + '<div class="c8"><div class="field"><label for="cend">Endereço</label><input id="cend" value="' + esc(c.endereco) + '"></div></div>'
+    + '<div class="c4"><div class="field"><label for="cwa">WhatsApp</label><input id="cwa" value="' + esc(c.whatsapp || "") + '" placeholder="(11) 99999-0000"></div></div>'
+    + '<div class="c4"><div class="field"><label for="cmail">E-mail</label><input id="cmail" type="email" value="' + esc(c.email || "") + '"></div></div>'
     + '<div class="c4"><div class="field"><label for="ccnpj">CNPJ</label><input id="ccnpj" value="' + esc(c.cnpj) + '"></div></div>'
+    + '<div class="c12"><div class="field"><label for="cend">Endereço</label><input id="cend" value="' + esc(c.endereco) + '"></div></div>'
     + '<div class="c8"><div class="field"><label for="cresp">Responsável técnico</label><input id="cresp" value="' + esc(c.responsavel) + '"></div></div>'
     + '<div class="c4"><div class="field"><label for="ccrmv">CRMV</label><input id="ccrmv" value="' + esc(c.crmv) + '"></div></div>'
     + '<div class="c12"><div class="field"><label for="cprof">Equipe (um nome por linha)</label><textarea id="cprof">' + esc((c.profissionais || []).join("\n")) + '</textarea></div></div>'
@@ -1791,7 +1769,8 @@ ROUTES.config = function (v) {
   h += '<div class="card"><h3>Sincronização em nuvem (opcional)</h3>'
     + '<div class="hint">Sem isso, os dados ficam apenas neste navegador. Com uma conta gratuita no Supabase, a recepção e você passam a ver a mesma base em qualquer aparelho — e funciona igual se o sistema estiver hospedado em outro lugar.</div>'
     + '<div class="formgrid">'
-    + '<div class="c12"><div class="field"><label for="surl">URL do projeto</label><input id="surl" placeholder="https://xxxxx.supabase.co" value="' + esc(cloud.url || "") + '"></div></div>'
+    + '<div class="c12"><div class="field"><label for="surl">URL do projeto</label><input id="surl" placeholder="https://xxxxx.supabase.co" value="' + esc(cloud.url || "") + '">'
+    + '<span style="font-size:11.5px;color:var(--ink-3)">No painel do Supabase: Project Settings → Data API. É o mesmo código que aparece no endereço do painel (.../project/<b>xxxxx</b>).</span></div></div>'
     + '<div class="c12"><div class="field"><label for="skey">Chave pública</label><input id="skey" type="password" value="' + esc(cloud.key || "") + '" placeholder="sb_publishable_…">'
     + '<span style="font-size:11.5px;color:var(--ink-3)">No painel do Supabase: Settings → API Keys. Use a chave <b>publishable</b> (ou a antiga <b>anon</b>). Nunca a secret / service_role.</span></div></div>'
     + '<div class="c6"><div class="field"><label for="stab">Tabela</label><input id="stab" value="' + esc(cloud.tabela || "nuccivet") + '"></div></div>'
@@ -1824,7 +1803,9 @@ ROUTES.config = function (v) {
     + '<div class="row">' + ["auto", "light", "dark"].map(m => '<button class="chip" data-tema="' + m + '">' + (m === "auto" ? "Automático" : m === "light" ? "Claro" : "Escuro") + '</button>').join("") + '</div></div>';
   h += '<div class="card"><h3>Como hospedar</h3><div class="hint">Este sistema é um único arquivo HTML. São duas coisas separadas: onde fica o <b>arquivo</b> e onde ficam os <b>dados</b>.</div>'
     + '<div style="font-size:13.5px"><b>1. O arquivo.</b> Guarde <b>nuccivet-sistema.html</b> em qualquer pasta e abra com duplo clique — funciona offline. '
-    + 'Para abrir por um endereço na internet, arraste o arquivo para o <b>Netlify Drop</b> (netlify.com/drop), ou use Cloudflare Pages, Vercel ou GitHub Pages. '
+    + 'Para abrir por um endereço na internet, renomeie o arquivo para <b>index.html</b> e use uma destas opções gratuitas:<br>'
+    + '• <b>GitHub Pages</b> — repositório público, Settings → Pages → branch main / root. Endereço: seuusuario.github.io/nuccivet<br>'
+    + '• <b>Netlify Drop</b> (app.netlify.com/drop) — arraste a pasta e pronto, sem repositório<br>'
     + 'O Storage do Supabase não serve páginas HTML no plano gratuito, então ele não funciona para essa parte.<br><br>'
     + '<b>2. Os dados.</b> É a sincronização acima, com o Supabase. Ative em cada aparelho usando a mesma URL e a mesma chave — '
     + 'a chave fica guardada no aparelho, não dentro do arquivo.<br><br>'
@@ -1835,6 +1816,7 @@ ROUTES.config = function (v) {
 
   $("#salvarcfg", v).onclick = () => {
     c.nome = $("#cnome", v).value; c.telefone = $("#ctel", v).value; c.endereco = $("#cend", v).value;
+    c.whatsapp = $("#cwa", v).value; c.email = $("#cmail", v).value;
     c.cnpj = $("#ccnpj", v).value; c.responsavel = $("#cresp", v).value; c.crmv = $("#ccrmv", v).value;
     c.profissionais = $("#cprof", v).value.split("\n").map(s => s.trim()).filter(Boolean);
     c.boxes = $("#cbox", v).value.split("\n").map(s => s.trim()).filter(Boolean);
@@ -2574,6 +2556,187 @@ function mutiraoVacinas() {
 </script>
 
 <script>
+/* ==================== RECEITUÁRIO (papel timbrado) ====================
+   Abre uma janela pronta para imprimir ou salvar em PDF, em A4,
+   com a logomarca, os dados da clínica e marca d'água discreta.
+   ===================================================================== */
+function numeroReceita(a) {
+  const d = String(a.data || todayISO()).replace(/-/g, "");
+  const s = String(a.id || uid()).replace(/[^a-z0-9]/gi, "").slice(-4).toUpperCase();
+  return "REC-" + d + "-" + s;
+}
+function itensPrescricao(txt) {
+  const linhas = String(txt || "").split(/\r?\n/).map(s => s.replace(/\s+$/, "")).filter(s => s.trim());
+  const out = [];
+  linhas.forEach(l => {
+    const sub = /^\s{2,}|^[-–•*]\s*/.test(l);
+    const limpo = l.replace(/^\s+/, "").replace(/^[-–•*]\s*/, "");
+    if (sub && out.length) out[out.length - 1].extras.push(limpo);
+    else out.push({ texto: limpo, extras: [] });
+  });
+  return out;
+}
+function marcaDagua() {
+  return '<svg class="wm" viewBox="0 0 200 200" aria-hidden="true">'
+    + '<path d="M72 8h56a12 12 0 0 1 12 12v40h40a12 12 0 0 1 12 12v56a12 12 0 0 1-12 12h-40v40a12 12 0 0 1-12 12H72a12 12 0 0 1-12-12v-40H20a12 12 0 0 1-12-12V72a12 12 0 0 1 12-12h40V20A12 12 0 0 1 72 8z" fill="#5C3A7B"/>'
+    + '<g fill="#fff">'
+    + '<ellipse cx="100" cy="125" rx="27" ry="23"/>'
+    + '<ellipse cx="70" cy="97" rx="12" ry="15" transform="rotate(-18 70 97)"/>'
+    + '<ellipse cx="90" cy="82" rx="11" ry="15"/>'
+    + '<ellipse cx="112" cy="82" rx="11" ry="15"/>'
+    + '<ellipse cx="131" cy="97" rx="12" ry="15" transform="rotate(18 131 97)"/>'
+    + '</g></svg>';
+}
+function imprimirPrescricao(a) {
+  const p = Q.pet(a.petId) || {}, c = Q.cliente(a.clienteId) || {}, cfg = DB.config;
+  const itens = itensPrescricao(a.prescricao);
+  const assinaturaEletronica = a.assinatura && a.assinatura !== "Não assinada" && a.assinatura !== "Assinada em papel";
+  const contato = [
+    cfg.telefone ? { r: "Telefone", v: cfg.telefone } : null,
+    cfg.whatsapp ? { r: "WhatsApp", v: cfg.whatsapp } : null,
+    cfg.email ? { r: "E-mail", v: cfg.email } : null
+  ].filter(Boolean);
+
+  const w = window.open("", "_blank");
+  if (!w) { toast("Permita janelas pop-up para gerar o PDF.", "err"); return; }
+
+  const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">'
+    + '<title>Receituário — ' + esc(p.nome || "") + ' — ' + fmtD(a.data) + '</title>'
+    + '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+    + '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">'
+    + '<style>'
+    + '@page{size:A4;margin:10mm 0 14mm}'
+    + '*{box-sizing:border-box}'
+    + 'html,body{margin:0;padding:0}'
+    + 'body{font-family:"Source Sans 3",system-ui,"Segoe UI",sans-serif;color:#2B2133;background:#EDE9F1;'
+    + '-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    + '.folha{position:relative;width:210mm;min-height:297mm;margin:22px auto;background:#fff;padding:0 18mm 26mm;'
+    + 'box-shadow:0 18px 50px rgba(43,33,51,.22);overflow:hidden}'
+    + '.wm{position:absolute;top:50%;left:50%;width:118mm;height:118mm;transform:translate(-50%,-50%) rotate(-12deg);opacity:.045;z-index:0;pointer-events:none}'
+    + '.conteudo{position:relative;z-index:1}'
+    + '.faixa{position:absolute;top:0;left:0;right:0;height:7px;background:linear-gradient(90deg,#3C2452 0%,#5C3A7B 42%,#9BD9A8 100%);z-index:2}'
+    /* cabeçalho */
+    + '.cab{display:flex;gap:16px;align-items:flex-start;padding:16mm 0 9px}'
+    + '.cab img{width:74px;height:74px;border-radius:14px;flex:none;box-shadow:0 3px 10px rgba(60,36,82,.28)}'
+    + '.ident{flex:1;min-width:0}'
+    + '.ident h1{margin:0;font-size:18.4pt;font-weight:700;letter-spacing:-.2px;color:#3C2452;line-height:1.14}'
+    + '.ident .rt{font-size:9.6pt;color:#5C3A7B;font-weight:600;margin-top:3px}'
+    + '.ident .cnpj{font-size:8.4pt;color:#79708A;letter-spacing:.3px;margin-top:2px}'
+    + '.contato{text-align:right;font-size:8.4pt;color:#4A4156;line-height:1.5;min-width:44mm;white-space:nowrap}'
+    + '.contato b{display:block;font-size:7pt;letter-spacing:1.4px;text-transform:uppercase;color:#9B90AA;font-weight:700}'
+    + '.contato span{display:block;margin-bottom:4px}'
+    + '.regua{height:2px;background:#5C3A7B;position:relative;margin-bottom:3px}'
+    + '.regua::after{content:"";position:absolute;right:0;top:0;height:2px;width:38%;background:#9BD9A8}'
+    + '.endereco{font-size:8.4pt;color:#79708A;padding-bottom:12px;border-bottom:1px solid #E6DEEC}'
+    /* título */
+    + '.titulo{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:18px 0 13px}'
+    + '.titulo h2{margin:0;font-size:12.4pt;letter-spacing:4.2px;text-transform:uppercase;font-weight:700;color:#3C2452}'
+    + '.titulo .meta{font-size:8.4pt;color:#79708A;text-align:right;letter-spacing:.4px}'
+    + '.titulo .meta b{color:#5C3A7B;letter-spacing:.8px}'
+    /* identificação */
+    + '.fichas{display:flex;gap:11px;margin-bottom:16px}'
+    + '.ficha{flex:1;background:#FAF7FC;border:1px solid #EADFF2;border-left:3px solid #9BD9A8;border-radius:7px;padding:10px 13px}'
+    + '.ficha h3{margin:0 0 7px;font-size:7pt;letter-spacing:1.6px;text-transform:uppercase;color:#5C3A7B;font-weight:700}'
+    + '.ficha .nome{font-size:12.4pt;font-weight:700;color:#2B2133;line-height:1.2;margin-bottom:4px}'
+    + '.ficha dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:1px 8px;font-size:8.8pt}'
+    + '.ficha dt{color:#8C8299}.ficha dd{margin:0;color:#3B3347}'
+    /* seções */
+    + '.sec{display:flex;align-items:center;gap:9px;margin:0 0 9px}'
+    + '.sec span{font-size:7.4pt;letter-spacing:2.4px;text-transform:uppercase;color:#5C3A7B;font-weight:700;white-space:nowrap}'
+    + '.sec i{flex:1;height:1px;background:#E6DEEC;display:block}'
+    + '.diag{font-family:"Source Serif 4",Georgia,serif;font-size:11.4pt;color:#2B2133;margin:0 0 16px;padding-left:2px}'
+    /* prescrição */
+    + '.presc{list-style:none;margin:0 0 18px;padding:0;counter-reset:rx}'
+    + '.presc li{position:relative;padding:0 0 11px 30px;font-family:"Source Serif 4",Georgia,serif;font-size:11.6pt;line-height:1.55;'
+    + 'border-bottom:1px dotted #E6DEEC;margin-bottom:11px}'
+    + '.presc li:last-child{border-bottom:0}'
+    + '.presc li::before{counter-increment:rx;content:counter(rx);position:absolute;left:0;top:1px;width:19px;height:19px;border-radius:50%;'
+    + 'background:#5C3A7B;color:#fff;font-family:"Source Sans 3",sans-serif;font-size:8.4pt;font-weight:700;display:flex;align-items:center;justify-content:center}'
+    + '.presc .extra{display:block;font-size:10.2pt;color:#5A5168;margin-top:3px;padding-left:2px}'
+    + '.vazio{font-family:"Source Serif 4",Georgia,serif;font-size:11.4pt;color:#8C8299}'
+    /* nota */
+    + '.nota{background:#EEF7F0;border:1px solid #D4EBDB;border-left:3px solid #4FA96C;border-radius:7px;padding:10px 13px;font-size:9.6pt;color:#28402F;margin-bottom:20px}'
+    + '.nota b{color:#20552F}'
+    /* assinatura */
+    + '.assina{margin-top:26px;display:flex;justify-content:flex-end}'
+    + '.assina .bloco{width:78mm;text-align:center}'
+    + '.assina .linha{border-top:1.4px solid #3C2452;margin-bottom:5px}'
+    + '.assina .quem{font-size:10.4pt;font-weight:700;color:#2B2133}'
+    + '.assina .crmv{font-size:8.6pt;color:#79708A;letter-spacing:.6px}'
+    + '.eletronica{margin-top:9px;font-size:7.8pt;color:#5C3A7B;background:#F4EEF8;border:1px dashed #CDBBDD;border-radius:6px;padding:6px 9px;text-align:left}'
+    + '.eletronica b{letter-spacing:.4px}'
+    /* rodapé */
+    + '.rodape{position:absolute;left:18mm;right:18mm;bottom:9mm;border-top:1px solid #E6DEEC;padding-top:6px;'
+    + 'text-align:center;font-size:7.2pt;color:#9B90AA;letter-spacing:.35px;line-height:1.5;z-index:1}'
+    + '.rodape em{font-style:normal;color:#C4BAD0;padding:0 5px}'
+    + '.dica{max-width:210mm;margin:16px auto 0;background:#EFE7F5;border-left:4px solid #5C3A7B;padding:11px 14px;'
+    + 'border-radius:8px;font-size:10pt;color:#3C2452;line-height:1.5}'
+    + '@media print{body{background:#fff}.folha{margin:0;box-shadow:none;width:auto;min-height:0;padding:0 18mm 18mm}.dica{display:none}'
+    + '.cab{padding-top:9mm}.wm{position:fixed;opacity:.05}.rodape{position:fixed;left:18mm;right:18mm;bottom:5mm}}'
+    + '</style></head><body>'
+    + '<div class="dica"><b>Para salvar em PDF:</b> na janela de impressão, escolha <b>Salvar como PDF</b> em “Destino”. '
+    + 'Depois assine o arquivo em assinador.iti.br com sua conta gov.br e registre o link no atendimento.</div>'
+    + '<div class="folha"><div class="faixa"></div>' + marcaDagua() + '<div class="conteudo">'
+    /* cabeçalho */
+    + '<div class="cab"><img src="' + LOGO_FULL + '" alt="">'
+    + '<div class="ident"><h1>' + esc(cfg.nome || "Clínica Veterinária") + '</h1>'
+    + (cfg.responsavel ? '<div class="rt">' + esc(cfg.responsavel) + (cfg.crmv ? " · CRMV " + esc(cfg.crmv) : "") + '</div>' : "")
+    + (cfg.cnpj ? '<div class="cnpj">CNPJ ' + esc(cfg.cnpj) + '</div>' : "")
+    + '</div>'
+    + (contato.length ? '<div class="contato">' + contato.map(x => '<span><b>' + esc(x.r) + '</b>' + esc(x.v) + '</span>').join("") + '</div>' : "")
+    + '</div><div class="regua"></div>'
+    + (cfg.endereco ? '<div class="endereco">' + esc(cfg.endereco) + '</div>' : '<div class="endereco"></div>')
+    /* título */
+    + '<div class="titulo"><h2>Receituário Veterinário</h2>'
+    + '<div class="meta"><b>' + esc(numeroReceita(a)) + '</b><br>' + esc(weekdayName(a.data)) + ", " + fmtD(a.data) + '</div></div>'
+    /* fichas */
+    + '<div class="fichas">'
+    + '<div class="ficha"><h3>Paciente</h3><div class="nome">' + esc(p.nome || "—") + '</div><dl>'
+    + '<dt>Espécie</dt><dd>' + esc(p.especie || "—") + (p.raca ? " · " + esc(p.raca) : "") + '</dd>'
+    + '<dt>Idade</dt><dd>' + esc(idade(p.nascimento)) + (p.sexo ? " · " + esc(p.sexo) : "") + '</dd>'
+    + '<dt>Peso</dt><dd>' + (a.peso ? a.peso + " kg" : (p.peso ? p.peso + " kg" : "—")) + '</dd>'
+    + (p.chip ? '<dt>Microchip</dt><dd>' + esc(p.chip) + '</dd>' : "")
+    + '</dl></div>'
+    + '<div class="ficha"><h3>Tutor responsável</h3><div class="nome">' + esc(c.nome || "—") + '</div><dl>'
+    + (c.cpf ? '<dt>CPF</dt><dd>' + esc(c.cpf) + '</dd>' : "")
+    + (c.telefone ? '<dt>Contato</dt><dd>' + esc(c.telefone) + '</dd>' : "")
+    + (c.endereco || c.bairro ? '<dt>Endereço</dt><dd>' + esc([c.endereco, c.bairro, c.cidade].filter(Boolean).join(", ")) + '</dd>' : "")
+    + '</dl></div></div>'
+    /* diagnóstico */
+    + (a.diagnostico ? '<div class="sec"><span>Diagnóstico</span><i></i></div><p class="diag">' + esc(a.diagnostico) + '</p>' : "")
+    /* prescrição */
+    + '<div class="sec"><span>Prescrição</span><i></i></div>'
+    + (itens.length
+      ? '<ol class="presc">' + itens.map(it => '<li>' + esc(it.texto)
+        + it.extras.map(e => '<span class="extra">' + esc(e) + '</span>').join("") + '</li>').join("") + '</ol>'
+      : '<p class="vazio">Sem medicação prescrita nesta consulta.</p>')
+    /* retorno */
+    + (a.retorno ? '<div class="nota"><b>Retorno agendado para ' + fmtD(a.retorno) + '.</b> '
+      + 'Traga esta receita na consulta de retorno e avise a clínica em caso de piora antes dessa data.</div>' : "")
+    /* assinatura */
+    + '<div class="assina"><div class="bloco"><div class="linha"></div>'
+    + '<div class="quem">' + esc(a.profissional || cfg.responsavel || "Médico(a) Veterinário(a)") + '</div>'
+    + '<div class="crmv">Médico(a) Veterinário(a)' + (cfg.crmv ? " · CRMV " + esc(cfg.crmv) : "") + '</div>'
+    + (assinaturaEletronica ? '<div class="eletronica"><b>Documento assinado eletronicamente</b><br>'
+      + esc(a.assinatura) + (a.assinadaEm ? " · " + fmtD(a.assinadaEm) : "")
+      + (a.linkAssinado ? '<br>Verificação: ' + esc(a.linkAssinado) : "") + '</div>' : "")
+    + '</div></div>'
+    + '</div>'
+    /* rodapé */
+    + '<div class="rodape">' + [
+      cfg.nome, cfg.cnpj ? "CNPJ " + cfg.cnpj : "", cfg.endereco,
+      cfg.whatsapp ? "WhatsApp " + cfg.whatsapp : (cfg.telefone || ""), cfg.email
+    ].filter(Boolean).map(x => esc(x)).join('<em>·</em>') + '</div>'
+    + '</div></body></html>';
+
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(() => { try { w.print(); } catch (e) { } }, 700);
+}
+</script>
+
+<script>
 /* ======================== DADOS DE EXEMPLO ======================== */
 function seedInternacoes(db) {
   const hoje = todayISO();
@@ -2657,6 +2820,9 @@ function seed(db) {
   const hoje = todayISO();
   const semanaIni = addDays(hoje, -parseISO(hoje).getDay());
   db.config.telefone = "(11) 4002-8922";
+  db.config.whatsapp = "(11) 98123-4500";
+  db.config.email = "contato@nuccivet.com.br";
+  db.config.cnpj = "12.345.678/0001-90";
   db.config.endereco = "Rua das Acácias, 128 — Vila Formosa, São Paulo/SP";
   db.config.responsavel = "Dra. Marina Nucci";
   db.config.crmv = "SP-12345";
