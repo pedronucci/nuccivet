@@ -356,6 +356,7 @@ const FORMAS = ["Dinheiro", "Pix", "Débito", "Crédito", "Transferência", "Fia
 const STATUS_AG = ["Agendado", "Confirmado", "Em atendimento", "Concluído", "Faltou", "Cancelado"];
 const TIPOS_AG = ["Consulta", "Retorno", "Vacina", "Banho", "Tosa", "Banho e tosa", "Exame", "Cirurgia", "Internação"];
 const isBT = (t) => ["Banho", "Tosa", "Banho e tosa"].indexOf(t) >= 0;
+const CATS_SERV = ["Consultas e exames", "Vacinas", "Farmácia", "Cirurgias", "Procedimentos", "Banho e tosa"];
 
 /* ---------- base de dados ---------- */
 const KEY = "nuccivet_db_v1";
@@ -878,8 +879,10 @@ ROUTES.clientes = function (v, args) {
     $$("[data-c]", v).forEach(b => b.onclick = () => go("clientes/" + b.dataset.c));
     $$("[data-e]", v).forEach(b => b.onclick = () => formCliente(b.dataset.e));
   };
-  v.innerHTML = barra(inputBusca("Buscar por nome, telefone, CPF…") + '<div class="spacer"></div><button class="btn pri" id="novo">+ Novo tutor</button>') + '<div id="lista"></div>';
+  v.innerHTML = barra(inputBusca("Buscar por nome, telefone, CPF…") + '<div class="spacer"></div>'
+    + '<button class="btn" id="importar">Importar planilha</button><button class="btn pri" id="novo">+ Novo tutor</button>') + '<div id="lista"></div>';
   $("#q", v).oninput = e => { termo = e.target.value; draw(); };
+  $("#importar", v).onclick = () => importarCadastros();
   $("#novo", v).onclick = () => formCliente(null);
   draw();
 };
@@ -980,9 +983,10 @@ ROUTES.pets = function (v, args) {
   };
   v.innerHTML = barra(inputBusca("Buscar por nome, raça, microchip…")
     + '<div class="row" id="chips">' + ['', ...ESPECIES].map(e => '<button class="chip' + (e === "" ? " on" : "") + '" data-esp="' + esc(e) + '">' + (e ? (ICONE[e] + " " + e) : "Todos") + '</button>').join("") + '</div>'
-    + '<div class="spacer"></div><button class="btn pri" id="novo">+ Novo pet</button>') + '<div id="lista"></div>';
+    + '<div class="spacer"></div><button class="btn" id="importar">Importar planilha</button><button class="btn pri" id="novo">+ Novo pet</button>') + '<div id="lista"></div>';
   $("#q", v).oninput = e => { termo = e.target.value; draw(); };
   $$("[data-esp]", v).forEach(b => b.onclick = () => { esp = b.dataset.esp; $$("[data-esp]", v).forEach(x => x.classList.toggle("on", x === b)); draw(); });
+  $("#importar", v).onclick = () => importarCadastros();
   $("#novo", v).onclick = () => formPet(null);
   draw();
 };
@@ -1503,7 +1507,10 @@ function formVacina(id, defaults) {
 /* ======================== SERVIÇOS E PREÇOS ======================== */
 ROUTES.servicos = function (v) {
   setTitle("Serviços e preços", DB.servicos.length + " itens na tabela");
-  const cats = ["Banho e tosa", "Consultas e exames", "Vacinas", "Procedimentos"];
+  /* categorias fixas + qualquer outra que exista nos cadastros antigos */
+  const extras = [];
+  DB.servicos.forEach(s => { const c = s.categoria || "Outros"; if (CATS_SERV.indexOf(c) < 0 && extras.indexOf(c) < 0) extras.push(c); });
+  const cats = CATS_SERV.concat(extras);
   let h = barra('<div class="spacer"></div><button class="btn pri" id="novo">+ Novo serviço</button>');
   cats.forEach(cat => {
     const its = DB.servicos.filter(s => s.categoria === cat);
@@ -1526,7 +1533,7 @@ function formServico(id) {
     values: s,
     fields: [
       { k: "nome", label: "Nome do serviço", col: "c8", required: true },
-      { k: "categoria", label: "Categoria", type: "select", col: "c4", options: ["Banho e tosa", "Consultas e exames", "Vacinas", "Procedimentos"] },
+      { k: "categoria", label: "Categoria", type: "select", col: "c4", options: CATS_SERV },
       { k: "preco", label: "Preço (R$)", type: "money", col: "c4", required: true },
       { k: "duracao", label: "Duração (min)", type: "number", col: "c4" },
       { k: "obs", label: "Descrição", col: "c12", placeholder: "Porte, inclui hidratação, etc." }
@@ -1687,7 +1694,7 @@ function formLancamento(id) {
       { k: "valor", label: "Valor (R$)", type: "money", col: "c4", required: true },
       { k: "data", label: "Data", type: "date", col: "c4", required: true },
       { k: "status", label: "Situação", type: "select", col: "c4", options: ["Pago", "Pendente"] },
-      { k: "categoria", label: "Categoria", type: "select", col: "c6", options: ["Serviços clínicos", "Banho e tosa", "Vacinas", "Venda de produtos", "Compras e estoque", "Salários", "Aluguel", "Água, luz e internet", "Impostos", "Marketing", "Outros"] },
+      { k: "categoria", label: "Categoria", type: "select", col: "c6", options: ["Serviços clínicos", "Cirurgias", "Vacinas", "Farmácia", "Banho e tosa", "Venda de produtos", "Compras e estoque", "Salários", "Aluguel", "Água, luz e internet", "Impostos", "Marketing", "Outros"] },
       { k: "forma", label: "Forma de pagamento", type: "select", col: "c6", options: FORMAS },
       { k: "clienteId", label: "Tutor (opcional)", type: "select", col: "c12", options: selClientes, blank: "—" }
     ],
@@ -1784,6 +1791,13 @@ ROUTES.config = function (v) {
     + '<div class="alert warn" style="margin-top:10px"><span>⚠</span><div>Quem tiver a chave e o endereço acessa os dados. Use apenas em equipamentos da clínica e troque a chave se alguém sair da equipe.</div></div>'
     + '</div>';
   h += '</div><div class="grid">';
+  h += '<div class="card"><h3>Importar cadastros</h3>'
+    + '<div class="hint">Traga os tutores e pets de outro sistema (Vetsmart, SimplesVet, planilha do Excel) sem redigitar nada. '
+    + 'O sistema reconhece as colunas sozinho e não duplica quem já está aqui.</div>'
+    + '<div class="row"><button class="btn pri" id="impcad">Importar planilha</button>'
+    + '<button class="btn" id="impmodelo">Ver modelo de planilha</button></div>'
+    + '<div class="hint" style="margin-top:10px">Faça um backup antes, em “Copiar dados” — se o resultado não agradar, é só restaurar.</div></div>';
+
   h += '<div class="card"><h3>Backup dos dados</h3><div class="hint">Guarde uma cópia com frequência. O arquivo contém tudo: tutores, pets, prontuários, estoque e caixa.</div>'
     + '<div class="row"><button class="btn pri" id="exp">Baixar backup (.json)</button><button class="btn" id="copiar">Copiar dados</button><button class="btn" id="imp">Restaurar backup</button></div>'
     + '<div class="hint" style="margin-top:8px">Se estiver usando o sistema dentro do Claude, o download fica bloqueado pelo navegador — use “Copiar dados”. No arquivo hospedado ou aberto do seu computador, o download funciona normalmente.</div>'
@@ -1843,6 +1857,8 @@ ROUTES.config = function (v) {
     try { await Cloud.pull(); toast("Conexão funcionando", "ok"); } catch (e) { toast("Falhou: " + e.message, "err"); Cloud.cfg = cfgOld; }
   };
   $("#offsync", v).onclick = () => { Cloud.clear(); render(); toast("Sincronização desligada"); };
+  $("#impcad", v).onclick = () => importarCadastros();
+  $("#impmodelo", v).onclick = () => modeloPlanilha();
   $("#exp", v).onclick = () => exportar();
   $("#copiar", v).onclick = () => {
     const txt = JSON.stringify(DB);
@@ -2737,6 +2753,351 @@ function imprimirPrescricao(a) {
 </script>
 
 <script>
+/* ==================== IMPORTAÇÃO DE CADASTROS ====================
+   Lê uma planilha salva em CSV (Vetsmart, SimplesVet, Excel…),
+   deixa você conferir de qual coluna vem cada campo e grava
+   tutores e pets sem duplicar quem já existe.
+   ================================================================= */
+function slug(s) {
+  return String(s == null ? "" : s).toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, " ").trim();
+}
+const digitos = (s) => String(s || "").replace(/\D/g, "");
+
+function detectaSeparador(linha) {
+  let melhor = ",", qtd = -1;
+  [",", ";", "\t", "|"].forEach(c => { const n = linha.split(c).length - 1; if (n > qtd) { qtd = n; melhor = c; } });
+  return melhor;
+}
+function parseCSV(texto) {
+  texto = String(texto || "").replace(/^﻿/, "");
+  const sep = detectaSeparador(texto.split(/\r?\n/)[0] || "");
+  const linhas = []; let campo = "", linha = [], dentro = false;
+  for (let i = 0; i < texto.length; i++) {
+    const ch = texto[i];
+    if (dentro) {
+      if (ch === '"') { if (texto[i + 1] === '"') { campo += '"'; i++; } else dentro = false; }
+      else campo += ch;
+    } else if (ch === '"') dentro = true;
+    else if (ch === sep) { linha.push(campo); campo = ""; }
+    else if (ch === "\n") { linha.push(campo); linhas.push(linha); linha = []; campo = ""; }
+    else if (ch !== "\r") campo += ch;
+  }
+  if (campo !== "" || linha.length) { linha.push(campo); linhas.push(linha); }
+  return linhas.map(l => l.map(c => String(c).trim())).filter(l => l.some(c => c !== ""));
+}
+
+/* normalizadores ------------------------------------------- */
+function normEspecie(v) {
+  const s = slug(v);
+  if (!s) return "Cão";
+  if (/can|cach|dog|srd/.test(s)) return "Cão";
+  if (/fel|gat|cat/.test(s)) return "Gato";
+  if (/ave|passar|papag|calop|periquit|canar/.test(s)) return "Ave";
+  if (/roed|hamst|coelh|porquinho|chinchil|gerbi/.test(s)) return "Roedor";
+  if (/rept|jabut|tartar|iguan|serpen|cobra|lagart/.test(s)) return "Réptil";
+  return "Outro";
+}
+function normSexo(v) {
+  const s = slug(v);
+  if (!s) return "";
+  if (/^f|femea|fem/.test(s)) return "Fêmea";
+  if (/^m|macho|mas/.test(s)) return "Macho";
+  return "";
+}
+function normPorte(v) {
+  const s = slug(v);
+  if (/gigant/.test(s)) return "Gigante";
+  if (/grand|large|^g$/.test(s)) return "Grande";
+  if (/medi|^m$/.test(s)) return "Médio";
+  if (/pequen|mini|small|^p$/.test(s)) return "Pequeno";
+  return "";
+}
+function normSimNao(v) {
+  const s = slug(v);
+  return /^(s|sim|1|x|true|verdadeiro|castrad)/.test(s);
+}
+function normPeso(v) {
+  const n = parseFloat(String(v || "").replace(/[^\d,.-]/g, "").replace(".", "").replace(",", "."));
+  return isNaN(n) || n <= 0 ? "" : Math.round(n * 100) / 100;
+}
+function normData(v) {
+  const s = String(v || "").trim();
+  if (!s) return "";
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return m[1] + "-" + pad(m[2]) + "-" + pad(m[3]);
+  m = s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/);
+  if (m) {
+    let ano = m[3];
+    if (ano.length === 2) ano = (+ano > 50 ? "19" : "20") + ano;
+    return ano + "-" + pad(m[2]) + "-" + pad(m[1]);
+  }
+  /* "3 anos", "8 meses" — estima a data a partir de hoje */
+  m = s.match(/^(\d{1,2})\s*(ano|mes|mês)/i);
+  if (m) return addMonths(todayISO(), -(+m[1]) * (/ano/i.test(m[2]) ? 12 : 1));
+  return "";
+}
+
+/* campos e sinônimos para o reconhecimento automático ------- */
+const CAMPOS_IMP = {
+  tutor: [
+    { k: "nome", r: "Nome do tutor", req: true, syn: ["nome do tutor", "nome do cliente", "nome do proprietario", "nome do responsavel", "tutor", "cliente", "proprietario", "responsavel", "dono"] },
+    { k: "telefone", r: "Telefone / WhatsApp", syn: ["telefone", "celular", "whatsapp", "fone", "contato", "tel", "telefone 1", "telefone celular"] },
+    { k: "cpf", r: "CPF", syn: ["cpf", "documento", "cpf cnpj"] },
+    { k: "email", r: "E-mail", syn: ["email", "e mail"] },
+    { k: "endereco", r: "Endereço", syn: ["endereco", "logradouro", "rua", "endereco completo"] },
+    { k: "bairro", r: "Bairro", syn: ["bairro"] },
+    { k: "cidade", r: "Cidade", syn: ["cidade", "municipio"] },
+    { k: "obs", r: "Observações do tutor", syn: ["observacao do cliente", "obs cliente", "observacoes do tutor"] }
+  ],
+  pet: [
+    { k: "nome", r: "Nome do pet", req: true, syn: ["nome do pet", "nome do animal", "nome do paciente", "paciente", "animal", "pet", "nome"] },
+    { k: "especie", r: "Espécie", syn: ["especie", "tipo do animal", "tipo"] },
+    { k: "raca", r: "Raça", syn: ["raca"] },
+    { k: "sexo", r: "Sexo", syn: ["sexo", "genero"] },
+    { k: "nascimento", r: "Nascimento", syn: ["data de nascimento", "nascimento", "dt nascimento", "aniversario", "idade"] },
+    { k: "peso", r: "Peso (kg)", syn: ["peso", "peso kg"] },
+    { k: "pelagem", r: "Pelagem / cor", syn: ["pelagem", "cor", "pelo", "cor do pelo"] },
+    { k: "porte", r: "Porte", syn: ["porte", "tamanho"] },
+    { k: "castrado", r: "Castrado", syn: ["castrado", "castracao", "esterilizado"] },
+    { k: "chip", r: "Microchip", syn: ["microchip", "chip", "rfid"] },
+    { k: "obs", r: "Observações do pet", syn: ["observacao", "observacoes", "obs", "alergia", "alergias", "anotacoes"] }
+  ]
+};
+function adivinhaColuna(campo, cabecalhos) {
+  const alvos = campo.syn.map(slug);
+  let melhor = -1, pontos = 0;
+  cabecalhos.forEach((h, i) => {
+    const s = slug(h);
+    if (!s) return;
+    alvos.forEach((a, ordem) => {
+      let p = 0;
+      if (s === a) p = 100 - ordem;
+      else if (s.indexOf(a) === 0) p = 70 - ordem;
+      else if (s.indexOf(a) >= 0) p = 45 - ordem;
+      if (p > pontos) { pontos = p; melhor = i; }
+    });
+  });
+  return pontos > 0 ? melhor : -1;
+}
+
+/* ---------------- fluxo da importação ---------------- */
+function importarCadastros() {
+  const o = openModal({
+    title: "Importar cadastros de outro sistema",
+    size: "wide",
+    body: passoArquivo(),
+    footer: '<button class="btn" data-close>Fechar</button><button class="btn pri" id="ler">Continuar</button>',
+    onMount: (m) => {
+      $("#arqcsv", m).onchange = (e) => {
+        const f = e.target.files[0]; if (!f) return;
+        const r = new FileReader();
+        r.onload = () => { $("#colado", m).value = r.result; toast("Arquivo carregado — confira e clique em Continuar", "ok"); };
+        r.readAsText(f, "utf-8");
+      };
+      $("#ler", m).onclick = () => {
+        const txt = $("#colado", m).value.trim();
+        if (!txt) { toast("Escolha o arquivo ou cole o conteúdo da planilha.", "err"); return; }
+        const linhas = parseCSV(txt);
+        if (linhas.length < 2) { toast("Não encontrei linhas de dados nessa planilha.", "err"); return; }
+        passoMapear(m, linhas);
+      };
+    }
+  });
+  return o;
+}
+function passoArquivo() {
+  return '<div class="hint">Exporte a lista de clientes e pacientes do sistema antigo em planilha e salve como <b>CSV</b> '
+    + '(no Excel: Arquivo → Salvar como → “CSV UTF-8 (delimitado por vírgulas)”). Depois escolha o arquivo aqui.</div>'
+    + '<div class="formgrid">'
+    + '<div class="c12"><div class="field"><label for="arqcsv">Arquivo da planilha (.csv)</label><input type="file" id="arqcsv" accept=".csv,text/csv,text/plain"></div></div>'
+    + '<div class="c12"><div class="field"><label for="colado">…ou cole aqui o conteúdo (pode copiar direto do Excel)</label>'
+    + '<textarea id="colado" class="codebox" style="width:100%;min-height:130px" placeholder="Tutor;Telefone;Pet;Especie;Raca;Nascimento&#10;Ana Paula;(11) 98123-4501;Thor;Canino;Golden;12/04/2022"></textarea></div></div>'
+    + '</div>'
+    + '<div class="alert info" style="margin-top:10px"><span>💡</span><div>Funciona com uma linha por pet trazendo os dados do tutor junto, '
+    + 'ou com uma planilha só de tutores e outra só de pets — nesse caso, importe uma de cada vez.</div></div>';
+}
+function passoMapear(m, linhas) {
+  const cab = linhas[0], dados = linhas.slice(1);
+  const opcoes = (sel) => '<option value="-1">— não importar —</option>'
+    + cab.map((h, i) => '<option value="' + i + '"' + (i === sel ? " selected" : "") + '>' + esc(h || ("Coluna " + (i + 1))) + '</option>').join("");
+  const bloco = (titulo, lista) => '<div class="sec-title"><h2 style="font-size:14px">' + titulo + '</h2><div class="line"></div></div>'
+    + '<div class="formgrid">' + lista.map(f => '<div class="c4"><div class="field"><label for="mp_' + f.grupo + "_" + f.k + '">'
+      + esc(f.r) + (f.req ? ' <span style="color:var(--danger)">*</span>' : "") + '</label>'
+      + '<select id="mp_' + f.grupo + "_" + f.k + '">' + opcoes(adivinhaColuna(f, cab)) + '</select></div></div>').join("") + '</div>';
+
+  const tutorF = CAMPOS_IMP.tutor.map(f => Object.assign({ grupo: "tutor" }, f));
+  const petF = CAMPOS_IMP.pet.map(f => Object.assign({ grupo: "pet" }, f));
+
+  $(".modal .body", m).innerHTML =
+    '<div class="hint">Encontrei <b>' + dados.length + '</b> linha(s) e <b>' + cab.length + '</b> coluna(s). '
+    + 'Confira de qual coluna vem cada informação — o que estiver errado é só trocar.</div>'
+    + bloco("Dados do tutor", tutorF)
+    + bloco("Dados do pet", petF)
+    + '<div class="row" style="margin-top:14px"><label class="check"><input type="checkbox" id="atualizar"> Atualizar quem já está cadastrado (em vez de manter o que está aqui)</label></div>'
+    + '<div id="previa"></div>';
+  $(".modal footer", m).innerHTML = '<button class="btn" id="voltar" style="margin-right:auto">‹ Voltar</button>'
+    + '<button class="btn" data-close>Cancelar</button><button class="btn" id="conferir">Ver prévia</button><button class="btn pri" id="impgo">Importar</button>';
+
+  const lerMapa = () => {
+    const mapa = { tutor: {}, pet: {} };
+    [].concat(tutorF, petF).forEach(f => {
+      const el = $("#mp_" + f.grupo + "_" + f.k, m);
+      mapa[f.grupo][f.k] = el ? parseInt(el.value, 10) : -1;
+    });
+    return mapa;
+  };
+  const conferir = () => {
+    const r = processaLinhas(dados, lerMapa(), true);
+    $("#previa", m).innerHTML = '<div class="sec-title"><h2 style="font-size:14px">Prévia</h2><div class="line"></div></div>'
+      + '<div class="kpis" style="margin-bottom:10px">'
+      + kpi("Tutores novos", r.contagem.tutoresNovos, "serão criados", "g")
+      + kpi("Tutores já cadastrados", r.contagem.tutoresExistentes, "não duplicam", "")
+      + kpi("Pets novos", r.contagem.petsNovos, "serão criados", "g")
+      + kpi("Linhas ignoradas", r.contagem.ignoradas, "sem nome de tutor ou pet", r.contagem.ignoradas ? "w" : "")
+      + '</div>'
+      + tabela([{ t: "Tutor" }, { t: "Telefone" }, { t: "Pet" }, { t: "Espécie / Raça" }, { t: "Nascimento" }],
+        r.amostra.map(x => '<tr><td>' + esc(x.tutor.nome || "—") + '</td><td>' + esc(x.tutor.telefone || "—") + '</td>'
+          + '<td>' + esc(x.pet.nome || "—") + '</td><td>' + esc(x.pet.especie || "—") + (x.pet.raca ? " · " + esc(x.pet.raca) : "") + '</td>'
+          + '<td>' + (x.pet.nascimento ? fmtD(x.pet.nascimento) : "—") + '</td></tr>'),
+        "Nenhuma linha aproveitável com esse mapeamento.");
+    $("#previa", m).scrollIntoView({ behavior: "smooth", block: "nearest" });
+  };
+  $("#conferir", m).onclick = conferir;
+  $("#voltar", m).onclick = () => { closeModal(); importarCadastros(); };
+  $("#impgo", m).onclick = () => {
+    const mapa = lerMapa();
+    if (mapa.tutor.nome < 0 && mapa.pet.nome < 0) { toast("Indique ao menos a coluna do nome do tutor ou do pet.", "err"); return; }
+    const r = processaLinhas(dados, mapa, false, $("#atualizar", m).checked);
+    save(); closeModal(); render();
+    openModal({
+      title: "Importação concluída", size: "narrow",
+      body: '<div class="kpis">' + kpi("Tutores criados", r.contagem.tutoresNovos, "novos cadastros", "g")
+        + kpi("Pets criados", r.contagem.petsNovos, "novos pacientes", "g") + '</div>'
+        + '<dl class="kv" style="margin-top:12px">'
+        + '<dt>Tutores já existentes</dt><dd>' + r.contagem.tutoresExistentes + (r.contagem.tutoresAtualizados ? " (" + r.contagem.tutoresAtualizados + " atualizados)" : "") + '</dd>'
+        + '<dt>Pets já existentes</dt><dd>' + r.contagem.petsExistentes + (r.contagem.petsAtualizados ? " (" + r.contagem.petsAtualizados + " atualizados)" : "") + '</dd>'
+        + '<dt>Linhas ignoradas</dt><dd>' + r.contagem.ignoradas + '</dd></dl>'
+        + '<div class="hint" style="margin-top:10px">Confira alguns cadastros em Tutores e Pets. Se algo vier torto, restaure o backup em Configurações e importe de novo com o mapeamento corrigido.</div>'
+    });
+    toast("Importação concluída", "ok");
+  };
+  conferir();
+}
+
+/* ---------------- processamento ---------------- */
+function processaLinhas(dados, mapa, simulacao, atualizar) {
+  const pegar = (linha, idx) => (idx >= 0 && idx < linha.length) ? String(linha[idx] || "").trim() : "";
+  const contagem = { tutoresNovos: 0, tutoresExistentes: 0, tutoresAtualizados: 0, petsNovos: 0, petsExistentes: 0, petsAtualizados: 0, ignoradas: 0 };
+  const amostra = [];
+
+  /* índice do que já existe */
+  const chaveTutor = (c) => digitos(c.cpf) ? "cpf:" + digitos(c.cpf)
+    : "n:" + slug(c.nome) + "|" + digitos(c.telefone).slice(-8);
+  const indice = {};
+  DB.clientes.forEach(c => { indice[chaveTutor(c)] = c; if (!indice["n:" + slug(c.nome) + "|"]) indice["n:" + slug(c.nome) + "|"] = c; });
+  const novosTutores = {};
+
+  dados.forEach(linha => {
+    const t = {}, p = {};
+    CAMPOS_IMP.tutor.forEach(f => { t[f.k] = pegar(linha, mapa.tutor[f.k]); });
+    CAMPOS_IMP.pet.forEach(f => { p[f.k] = pegar(linha, mapa.pet[f.k]); });
+    p.especie = p.especie ? normEspecie(p.especie) : (p.nome ? "Cão" : "");
+    p.sexo = normSexo(p.sexo);
+    p.porte = normPorte(p.porte);
+    p.castrado = mapa.pet.castrado >= 0 ? normSimNao(pegar(linha, mapa.pet.castrado)) : false;
+    p.peso = normPeso(p.peso);
+    p.nascimento = normData(p.nascimento);
+
+    if (!t.nome && !p.nome) { contagem.ignoradas++; return; }
+    if (amostra.length < 6) amostra.push({ tutor: t, pet: p });
+    if (simulacao) {
+      /* conta sem gravar */
+      const ch = t.nome ? chaveTutor(t) : "";
+      const jaExiste = t.nome ? (indice[ch] || indice["n:" + slug(t.nome) + "|"]) : null;
+      if (t.nome) {
+        if (jaExiste || novosTutores[ch]) contagem.tutoresExistentes++;
+        else { contagem.tutoresNovos++; novosTutores[ch] = true; }
+      }
+      if (p.nome) {
+        if (jaExiste && DB.pets.some(x => x.clienteId === jaExiste.id && slug(x.nome) === slug(p.nome))) contagem.petsExistentes++;
+        else contagem.petsNovos++;
+      }
+      return;
+    }
+
+    /* tutor */
+    let cliente = null;
+    if (t.nome) {
+      const ch = chaveTutor(t);
+      cliente = indice[ch] || indice["n:" + slug(t.nome) + "|"];
+      if (cliente) {
+        contagem.tutoresExistentes++;
+        if (atualizar) {
+          let mudou = false;
+          ["telefone", "cpf", "email", "endereco", "bairro", "cidade", "obs"].forEach(k => {
+            if (t[k] && t[k] !== cliente[k]) { cliente[k] = t[k]; mudou = true; }
+          });
+          if (mudou) contagem.tutoresAtualizados++;
+        }
+      } else {
+        cliente = {
+          id: uid(), nome: t.nome, telefone: t.telefone, cpf: t.cpf, email: t.email,
+          endereco: t.endereco, bairro: t.bairro, cidade: t.cidade, obs: t.obs, criadoEm: todayISO()
+        };
+        DB.clientes.push(cliente);
+        indice[chaveTutor(cliente)] = cliente;
+        indice["n:" + slug(cliente.nome) + "|"] = cliente;
+        contagem.tutoresNovos++;
+      }
+    }
+
+    /* pet */
+    if (p.nome) {
+      if (!cliente) {
+        cliente = DB.clientes.find(c => slug(c.nome) === "tutor nao informado");
+        if (!cliente) { cliente = { id: uid(), nome: "Tutor não informado", telefone: "", cpf: "", email: "", endereco: "", bairro: "", cidade: "", obs: "Criado na importação — preencher depois.", criadoEm: todayISO() }; DB.clientes.push(cliente); contagem.tutoresNovos++; }
+      }
+      const existente = DB.pets.find(x => x.clienteId === cliente.id && slug(x.nome) === slug(p.nome));
+      if (existente) {
+        contagem.petsExistentes++;
+        if (atualizar) {
+          let mudou = false;
+          ["especie", "raca", "sexo", "nascimento", "peso", "pelagem", "porte", "chip", "obs"].forEach(k => {
+            if (p[k] && p[k] !== existente[k]) { existente[k] = p[k]; mudou = true; }
+          });
+          if (mudou) contagem.petsAtualizados++;
+        }
+      } else {
+        DB.pets.push({
+          id: uid(), clienteId: cliente.id, nome: p.nome, especie: p.especie || "Cão", raca: p.raca,
+          sexo: p.sexo, nascimento: p.nascimento, peso: p.peso, pelagem: p.pelagem, porte: p.porte,
+          castrado: !!p.castrado, chip: p.chip, obs: p.obs, criadoEm: todayISO()
+        });
+        contagem.petsNovos++;
+      }
+    }
+  });
+  return { contagem, amostra };
+}
+
+/* modelo de planilha para quem preferir montar à mão */
+function modeloPlanilha() {
+  const csv = "Tutor;CPF;Telefone;Email;Endereco;Bairro;Cidade;Pet;Especie;Raca;Sexo;Nascimento;Peso;Castrado;Microchip;Observacoes\n"
+    + "Ana Paula Ribeiro;312.445.678-90;(11) 98123-4501;ana@email.com;Rua das Flores, 100;Vila Formosa;São Paulo;Thor;Canino;Golden Retriever;Macho;12/04/2022;32,4;Sim;;Alergia a frango\n"
+    + "Ana Paula Ribeiro;312.445.678-90;(11) 98123-4501;ana@email.com;Rua das Flores, 100;Vila Formosa;São Paulo;Mel;Canino;Shih-tzu;Fêmea;03/09/2020;6,8;Sim;;\n"
+    + "Carlos Eduardo Menezes;;(11) 97744-2210;;;Tatuapé;São Paulo;Nina;Felino;Siamês;Fêmea;20/02/2024;4,1;Não;;Estressa com barulho";
+  openModal({
+    title: "Modelo de planilha", size: "wide",
+    body: '<div class="hint">Uma linha por pet, repetindo os dados do tutor quando ele tem mais de um animal. '
+      + 'Copie o texto abaixo, cole no Excel e use “Dados → Texto para colunas” com o ponto e vírgula, ou preencha e salve como CSV.</div>'
+      + '<textarea class="codebox" style="width:100%;min-height:200px">' + esc(csv) + '</textarea>'
+  });
+}
+</script>
+
+<script>
 /* ======================== DADOS DE EXEMPLO ======================== */
 function seedInternacoes(db) {
   const hoje = todayISO();
@@ -2850,11 +3211,19 @@ function seed(db) {
     S("V4 (múltipla felina)", "Vacinas", 90, 15),
     S("Antirrábica", "Vacinas", 70, 15),
     S("Giárdia", "Vacinas", 95, 15),
-    S("Castração — fêmea", "Procedimentos", 480, 120),
-    S("Castração — macho", "Procedimentos", 330, 90),
-    S("Limpeza dentária (tartarectomia)", "Procedimentos", 390, 90),
+    S("Castração — fêmea", "Cirurgias", 480, 120),
+    S("Castração — macho", "Cirurgias", 330, 90),
+    S("Limpeza dentária (tartarectomia)", "Cirurgias", 390, 90),
+    S("Retirada de nódulo cutâneo", "Cirurgias", 620, 120, "Valor sob avaliação, inclui envio para histopatológico"),
     S("Curativo", "Procedimentos", 60, 20),
-    S("Aplicação de medicação", "Procedimentos", 30, 15)
+    S("Aplicação de medicação", "Procedimentos", 30, 15),
+    S("Fluidoterapia (sessão)", "Procedimentos", 90, 60),
+    S("Antipulgas spot-on (10–25 kg)", "Farmácia", 79, 0, "Aplicação na clínica inclusa"),
+    S("Vermífugo (comprimido)", "Farmácia", 16, 0),
+    S("Anti-inflamatório injetável", "Farmácia", 45, 0),
+    S("Shampoo hipoalergênico 500 ml", "Farmácia", 62, 0),
+    S("Ração gastrointestinal 2 kg", "Farmácia", 149, 0, "Dieta terapêutica"),
+    S("Ração urinária felina 1,5 kg", "Farmácia", 139, 0, "Dieta terapêutica")
   ];
 
   const C = (nome, telefone, bairro, cpf, email) => ({ id: uid(), nome, telefone, bairro, cidade: "São Paulo", cpf: cpf || "", email: email || "", endereco: "", obs: "", criadoEm: addDays(hoje, -Math.floor(Math.random() * 600) - 30) });
