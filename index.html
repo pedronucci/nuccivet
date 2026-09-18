@@ -86,7 +86,24 @@ a{color:var(--brand);text-decoration:none}
 .navlink .ic{width:20px;text-align:center;font-size:15px;flex:none}
 .navlink .cnt{margin-left:auto;background:rgba(255,255,255,.16);border-radius:20px;font-size:11px;padding:1px 7px;font-weight:700;font-variant-numeric:tabular-nums}
 .navlink.on .cnt{background:rgba(0,0,0,.14)}
+#chipuser{display:flex;align-items:center;gap:9px;margin:0 10px 8px;padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.14);
+  background:rgba(255,255,255,.06);color:var(--nav-ink);cursor:pointer;text-align:left;font:inherit;width:calc(100% - 20px)}
+#chipuser:hover{background:rgba(255,255,255,.13)}
+#chipuser .ini{width:28px;height:28px;border-radius:50%;background:var(--mint);color:#22322A;display:grid;place-items:center;font-weight:700;font-size:13px;flex:none}
+#chipuser b{display:block;font-size:13.5px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#chipuser i{font-style:normal;font-size:11px;color:var(--nav-ink-dim)}
 .navfoot{padding:10px 14px;border-top:1px solid rgba(255,255,255,.12);font-size:11.5px;color:var(--nav-ink-dim);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+/* ---------- tela de acesso ---------- */
+#trava{position:fixed;inset:0;z-index:400;display:grid;place-items:center;padding:24px 16px;overflow-y:auto;
+  background:radial-gradient(1200px 600px at 50% -10%,#5C3A7B 0%,#3C2452 45%,#2A1838 100%)}
+#trava .cartao{background:var(--surface);border-radius:20px;box-shadow:0 30px 70px rgba(20,10,30,.45);padding:26px 26px 22px;width:min(400px,100%);text-align:center}
+#trava img{width:76px;height:76px;border-radius:18px;margin-bottom:12px}
+#trava h1{font-size:22px;color:var(--ink)}
+#trava .sub{font-size:13.5px;color:var(--ink-3);margin:4px 0 16px}
+#trava .field{text-align:left}
+#trava .erro{background:var(--danger-weak);color:var(--danger);border-radius:8px;padding:8px 11px;font-size:13px;margin-bottom:12px;font-weight:600}
+#trava .aviso{font-size:11.5px;color:var(--ink-3);margin-top:14px;line-height:1.45}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--mint);flex:none}
 .dot.off{background:#8F819D}.dot.err{background:#E58270}
 
@@ -272,13 +289,14 @@ td.acts{text-align:right;white-space:nowrap}
 
 
 
-<div id="app">
+<div id="app" hidden>
   <aside id="nav">
     <div class="brand">
       <img src="data:image/jpeg;base64,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" alt="Nuccivet">
       <div><b>Nuccivet</b><span>Saúde Animal</span></div>
     </div>
     <div class="navscroll" id="navscroll"></div>
+    <button id="chipuser" hidden></button>
     <div class="navfoot">
       <span class="dot off" id="syncdot"></span>
       <span id="syncmsg">Dados neste dispositivo</span>
@@ -375,7 +393,7 @@ function emptyDB() {
     },
     clientes: [], pets: [], agenda: [], atendimentos: [], vacinas: [],
     produtos: [], movimentos: [], financeiro: [], internacoes: [],
-    servicos: []
+    servicos: [], usuarios: [], log: [], recuperacao: null
   };
 }
 function loadDB() {
@@ -620,8 +638,13 @@ const NAV = [
 ];
 function renderNav() {
   const rota = (location.hash.replace("#/", "").split("/")[0]) || "painel";
-  $("#navscroll").innerHTML = NAV.map(n => {
-    if (n.g) return '<div class="navgroup">' + esc(n.g) + '</div>';
+  const visiveis = NAV.filter(n => n.g || pode(n.r));
+  $("#navscroll").innerHTML = visiveis.map((n, i) => {
+    if (n.g) {
+      /* não mostra um grupo que ficou sem itens */
+      const prox = visiveis[i + 1];
+      return (prox && !prox.g) ? '<div class="navgroup">' + esc(n.g) + '</div>' : "";
+    }
     const c = n.cnt ? n.cnt() : "";
     return '<button class="navlink' + (rota === n.r ? " on" : "") + '" data-r="' + n.r + '">'
       + '<span class="ic">' + n.ic + '</span><span>' + esc(n.t) + '</span>'
@@ -635,11 +658,21 @@ function closeNav() { $("#nav").classList.remove("open"); const s = $("#scrim");
 const ROUTES = {};
 function render() {
   const parts = (location.hash.replace("#/", "") || "painel").split("/");
+  const v = $("#view");
+  v.innerHTML = "";
+  if (!pode(parts[0])) {
+    setTitle("Acesso restrito", "Perfil: " + perfilAtual());
+    v.innerHTML = '<div class="card"><div class="empty"><span class="big">🔒</span>'
+      + 'Esta área não faz parte do seu perfil de acesso.<br><span class="muted">Fale com o administrador se precisar dela.</span>'
+      + '<br><button class="btn pri sm" id="voltapainel" style="margin-top:12px">Ir para o painel</button></div></div>';
+    const b = $("#voltapainel", v); if (b) b.onclick = () => go("painel");
+    renderNav();
+    return;
+  }
   const fn = ROUTES[parts[0]] || ROUTES.painel;
-  $("#view").innerHTML = "";
-  fn($("#view"), parts.slice(1));
+  fn(v, parts.slice(1));
   renderNav();
-  $("#view").scrollTop = 0;
+  v.scrollTop = 0;
 }
 window.addEventListener("hashchange", render);
 
@@ -764,8 +797,10 @@ ROUTES.painel = function (v) {
     + kpi("Agenda de hoje", agHoje.length, agHoje.filter(a => a.status === "Concluído").length + " concluídos", "")
     + kpi("Internados", internados.length, dosesPend + " dose(s) pendente(s) hoje", dosesAtras ? "d" : internados.length ? "w" : "g")
     + kpi("Atendimentos no mês", atendMes.length, MESES[+mes.slice(5) - 1] + "/" + mes.slice(0, 4), "g")
-    + kpi("Faturamento do mês", money(recMes), "Despesas " + money(despMes), "g")
-    + kpi("Saldo em caixa", money(Q.saldoCaixa()), pendentes.length + " lançamento(s) pendente(s)", Q.saldoCaixa() < 0 ? "d" : "")
+    + (podeVerDinheiro()
+      ? kpi("Faturamento do mês", money(recMes), "Despesas " + money(despMes), "g")
+      + kpi("Saldo em caixa", money(Q.saldoCaixa()), pendentes.length + " lançamento(s) pendente(s)", Q.saldoCaixa() < 0 ? "d" : "")
+      : kpi("Vacinas a vencer", vac.length, "próximos 30 dias", vac.length ? "w" : "g"))
     + kpi("Alertas", vac.length + baixo.length, "vacinas e estoque", (vac.length + baixo.length) ? "w" : "")
     + '</div>';
 
@@ -806,7 +841,7 @@ ROUTES.painel = function (v) {
     const d = addDays(hoje, -i);
     dias.push({ l: fmtDshort(d), v: DB.financeiro.filter(l => l.tipo === "Receita" && l.data === d).reduce((s, l) => s + l.valor, 0) });
   }
-  h += '<div class="card"><h3>Entradas dos últimos 14 dias</h3><div class="hint">Receitas lançadas no caixa, por dia.</div>'
+  if (podeVerDinheiro()) h += '<div class="card"><h3>Entradas dos últimos 14 dias</h3><div class="hint">Receitas lançadas no caixa, por dia.</div>'
     + lineChart(dias, { fmt: v => "R$ " + Math.round(v), alt: "Receitas por dia" }) + '</div>';
   h += '</div>';
 
@@ -826,7 +861,7 @@ ROUTES.painel = function (v) {
   baixo.slice(0, 5).forEach(p => {
     alertas += '<div class="alert warn"><span>📦</span><div><b>' + esc(p.nome) + '</b> — estoque ' + p.estoque + ' ' + esc(p.unidade) + ' (mínimo ' + p.minimo + ')</div></div>';
   });
-  if (pendentes.length) alertas += '<div class="alert info"><span>💰</span><div><b>' + pendentes.length + ' lançamento(s) pendente(s)</b><br><span class="muted">' + money(pendentes.reduce((s, l) => s + (l.tipo === "Receita" ? l.valor : 0), 0)) + ' a receber</span></div></div>';
+  if (pendentes.length && podeVerDinheiro()) alertas += '<div class="alert info"><span>💰</span><div><b>' + pendentes.length + ' lançamento(s) pendente(s)</b><br><span class="muted">' + money(pendentes.reduce((s, l) => s + (l.tipo === "Receita" ? l.valor : 0), 0)) + ' a receber</span></div></div>';
   h += alertas || '<div class="empty" style="padding:18px"><span class="big">✅</span>Tudo em dia por aqui.</div>';
   h += '</div>';
 
@@ -903,7 +938,7 @@ function formCliente(id, then) {
     ],
     del: id ? () => {
       if (Q.petsDo(id).length) { toast("Remova ou transfira os pets antes de excluir o tutor.", "err"); return; }
-      DB.clientes = DB.clientes.filter(x => x.id !== id); save(); toast("Tutor excluído"); go("clientes");
+      registrar("Tutor excluído", c.nome); DB.clientes = DB.clientes.filter(x => x.id !== id); save(); toast("Tutor excluído"); go("clientes");
     } : null,
     onSave: (d) => {
       if (id) Object.assign(c, d);
@@ -1011,6 +1046,7 @@ function formPet(id, defaults) {
       { k: "obs", label: "Alergias, temperamento e observações", type: "textarea", col: "c12" }
     ],
     del: id ? () => {
+      registrar("Pet excluído", p.nome + " · tutor " + Q.nomeCliente(p.clienteId));
       DB.pets = DB.pets.filter(x => x.id !== id);
       DB.agenda = DB.agenda.filter(a => a.petId !== id);
       DB.atendimentos = DB.atendimentos.filter(a => a.petId !== id);
@@ -1154,7 +1190,7 @@ function evHTML(a) {
     + '<b>' + esc(a.hora) + ' ' + esc(Q.nomePet(a.petId)) + '</b>' + esc(a.tipo) + '</div>';
 }
 function formAgendamento(id, defaults) {
-  const a = id ? DB.agenda.find(x => x.id === id) : Object.assign({ data: todayISO(), hora: "09:00", status: "Agendado", tipo: "Consulta" }, defaults || {});
+  const a = id ? DB.agenda.find(x => x.id === id) : Object.assign({ data: todayISO(), hora: "09:00", status: "Agendado", tipo: "Consulta", profissional: nomeUsuario() }, defaults || {});
   if (!DB.pets.length) { toast("Cadastre um pet primeiro.", "err"); return; }
   openForm({
     title: id ? "Editar agendamento" : "Novo agendamento",
@@ -1258,7 +1294,7 @@ ROUTES.atendimentos = function (v) {
   draw();
 };
 function formAtendimento(id, defaults) {
-  const a = id ? DB.atendimentos.find(x => x.id === id) : Object.assign({ data: todayISO(), tipo: "Consulta" }, defaults || {});
+  const a = id ? DB.atendimentos.find(x => x.id === id) : Object.assign({ data: todayISO(), tipo: "Consulta", profissional: nomeUsuario() }, defaults || {});
   if (!DB.pets.length) { toast("Cadastre um pet primeiro.", "err"); return; }
   const pet = Q.pet(a.petId);
   openForm({
@@ -1288,7 +1324,7 @@ function formAtendimento(id, defaults) {
       { k: "assinadaEm", label: "Assinada em", type: "date", col: "c3" },
       { k: "linkAssinado", label: "Link do PDF assinado", col: "c5", placeholder: "https://…", hint: "Cole aqui o arquivo salvo na nuvem; vai junto na mensagem." }
     ],
-    del: id ? () => { DB.atendimentos = DB.atendimentos.filter(x => x.id !== id); save(); render(); toast("Atendimento excluído"); } : null,
+    del: id ? () => { registrar("Atendimento excluído", Q.nomePet(a.petId) + " · " + fmtD(a.data)); DB.atendimentos = DB.atendimentos.filter(x => x.id !== id); save(); render(); toast("Atendimento excluído"); } : null,
     onMount: (o) => {
       const i = $("#imp", o);
       if (i) i.onclick = () => imprimirPrescricao(a);
@@ -1321,6 +1357,7 @@ function formAtendimento(id, defaults) {
         const jaTem = DB.agenda.some(x => x.petId === reg.petId && x.data === reg.retorno && x.tipo === "Retorno");
         if (!jaTem) DB.agenda.push({ id: uid(), data: reg.retorno, hora: "09:00", petId: reg.petId, clienteId: reg.clienteId, tipo: "Retorno", status: "Agendado", profissional: reg.profissional || "", valor: 0, obs: "Retorno de " + fmtD(reg.data) });
       }
+      registrar(novo ? "Atendimento registrado" : "Atendimento alterado", Q.nomePet(reg.petId) + " · " + fmtD(reg.data) + (reg.valor ? " · " + money(reg.valor) : ""));
       save(); render();
       toast(novo ? "Atendimento registrado" : "Atendimento atualizado", "ok");
     }
@@ -1439,6 +1476,7 @@ function comandaBT(id) {
             clienteId: a.clienteId, ref: a.id
           });
         }
+        registrar("Banho e tosa finalizado", Q.nomePet(a.petId) + " · " + money(a.valor) + " · " + (a.forma || ""));
         save(); closeModal(); render(); toast("Serviço finalizado e lançado no caixa", "ok");
       };
     }
@@ -1481,7 +1519,7 @@ ROUTES.vacinas = function (v) {
 };
 const VACINAS = ["V8 / V10 (múltipla)", "V4 / V5 felina", "Antirrábica", "Giárdia", "Gripe canina (tosse dos canis)", "Leishmaniose", "Leucemia felina (FeLV)", "Vermífugo", "Antipulgas"];
 function formVacina(id, defaults) {
-  const x = id ? DB.vacinas.find(y => y.id === id) : Object.assign({ data: todayISO(), vacina: VACINAS[0] }, defaults || {});
+  const x = id ? DB.vacinas.find(y => y.id === id) : Object.assign({ data: todayISO(), vacina: VACINAS[0], veterinario: nomeUsuario() }, defaults || {});
   if (!DB.pets.length) { toast("Cadastre um pet primeiro.", "err"); return; }
   openForm({
     title: id ? "Editar aplicação" : "Registrar vacina",
@@ -1667,7 +1705,7 @@ ROUTES.financeiro = function (v) {
         + (l.status === "Pendente" ? '<button class="btn sm ok" data-pg="' + l.id + '">Receber</button> ' : "") + '<button class="btn sm" data-e="' + l.id + '">Editar</button></td></tr>'),
       "Nenhum lançamento neste mês.");
     $$("[data-e]", v).forEach(b => b.onclick = () => formLancamento(b.dataset.e));
-    $$("[data-pg]", v).forEach(b => b.onclick = () => { const l = DB.financeiro.find(x => x.id === b.dataset.pg); l.status = "Pago"; save(); render(); toast("Pagamento registrado", "ok"); });
+    $$("[data-pg]", v).forEach(b => b.onclick = () => { const l = DB.financeiro.find(x => x.id === b.dataset.pg); l.status = "Pago"; registrar("Pagamento recebido", l.descricao + " · " + money(l.valor)); save(); render(); toast("Pagamento registrado", "ok"); });
     $$("[data-wc]", v).forEach(b => b.onclick = () => whatsAberto(DB.financeiro.find(x => x.id === b.dataset.wc)));
   };
   v.innerHTML = '<div class="kpis" id="kpis"></div>'
@@ -1698,8 +1736,10 @@ function formLancamento(id) {
       { k: "forma", label: "Forma de pagamento", type: "select", col: "c6", options: FORMAS },
       { k: "clienteId", label: "Tutor (opcional)", type: "select", col: "c12", options: selClientes, blank: "—" }
     ],
-    del: id ? () => { DB.financeiro = DB.financeiro.filter(x => x.id !== id); save(); render(); toast("Lançamento excluído"); } : null,
-    onSave: (d) => { if (id) Object.assign(l, d); else { d.id = uid(); DB.financeiro.push(d); } save(); render(); toast("Lançamento salvo", "ok"); }
+    del: id ? () => { registrar("Lançamento excluído", l.descricao + " · " + money(l.valor)); DB.financeiro = DB.financeiro.filter(x => x.id !== id); save(); render(); toast("Lançamento excluído"); } : null,
+    onSave: (d) => { if (id) Object.assign(l, d); else { d.id = uid(); DB.financeiro.push(d); }
+      registrar(id ? "Lançamento alterado" : "Lançamento no caixa", d.tipo + " · " + d.descricao + " · " + money(d.valor));
+      save(); render(); toast("Lançamento salvo", "ok"); }
   });
 }
 
@@ -1791,6 +1831,19 @@ ROUTES.config = function (v) {
     + '<div class="alert warn" style="margin-top:10px"><span>⚠</span><div>Quem tiver a chave e o endereço acessa os dados. Use apenas em equipamentos da clínica e troque a chave se alguém sair da equipe.</div></div>'
     + '</div>';
   h += '</div><div class="grid">';
+  h += '<div class="card"><h3>Equipe e acessos</h3>'
+    + '<div class="hint">' + (DB.usuarios.length
+      ? DB.usuarios.filter(u => u.ativo !== false).length + ' pessoa(s) com acesso. Cada uma entra com a própria senha e vê apenas o que o perfil permite.'
+      : 'O sistema está sem senha — qualquer pessoa que abrir o endereço entra direto. Crie o acesso de administrador para proteger.') + '</div>'
+    + '<div class="row">'
+    + (DB.usuarios.length
+      ? '<button class="btn pri" id="equipe">Gerenciar equipe</button><button class="btn" id="histatv">Histórico de atividades</button><button class="btn" id="minhasenha">Trocar minha senha</button>'
+      : '<button class="btn pri" id="criaracesso">Proteger com senha</button>')
+    + '</div>'
+    + (DB.usuarios.length ? '<div class="hint" style="margin-top:10px">Lembrete: este login organiza a equipe e separa o que cada um vê. '
+      + 'Como tudo roda no navegador, ele não substitui uma tranca de servidor — não use o mesmo computador para assuntos sensíveis de fora da clínica.</div>' : "")
+    + '</div>';
+
   h += '<div class="card"><h3>Importar cadastros</h3>'
     + '<div class="hint">Traga os tutores e pets de outro sistema (Vetsmart, SimplesVet, planilha do Excel) sem redigitar nada. '
     + 'O sistema reconhece as colunas sozinho e não duplica quem já está aqui.</div>'
@@ -1857,6 +1910,10 @@ ROUTES.config = function (v) {
     try { await Cloud.pull(); toast("Conexão funcionando", "ok"); } catch (e) { toast("Falhou: " + e.message, "err"); Cloud.cfg = cfgOld; }
   };
   $("#offsync", v).onclick = () => { Cloud.clear(); render(); toast("Sincronização desligada"); };
+  const bq = $("#equipe", v); if (bq) bq.onclick = () => telaEquipe();
+  const bh = $("#histatv", v); if (bh) bh.onclick = () => historicoAtividades();
+  const bs2 = $("#minhasenha", v); if (bs2) bs2.onclick = () => trocarMinhaSenha();
+  const bc = $("#criaracesso", v); if (bc) bc.onclick = () => { $("#app").hidden = true; telaPrimeiroAcesso(false); };
   $("#impcad", v).onclick = () => importarCadastros();
   $("#impmodelo", v).onclick = () => modeloPlanilha();
   $("#exp", v).onclick = () => exportar();
@@ -1866,7 +1923,7 @@ ROUTES.config = function (v) {
   };
   $("#imp", v).onclick = () => importar();
   $("#zerar", v).onclick = () => confirmar("Isso apaga TODOS os registros deste sistema e começa do zero. Faça um backup antes. Deseja continuar?", () => {
-    DB = emptyDB(); save(); go("painel"); render(); toast("Sistema zerado");
+    DB = emptyDB(); registrar("Base zerada", "todos os registros apagados"); save(); go("painel"); render(); toast("Sistema zerado");
   }, "Apagar tudo");
   $$("[data-tema]", v).forEach(b => {
     let atual = "auto"; try { atual = localStorage.getItem("nuccivet_theme") || "auto"; } catch (e) { }
@@ -2082,7 +2139,9 @@ ROUTES.internacao = function (v, args) {
     const [iid, pid, slot] = b.dataset.aplica.split("|");
     const i = Q.internacao(iid);
     i.aplicacoes = i.aplicacoes || [];
-    i.aplicacoes.push({ id: uid(), prescricaoId: pid, slot, dataHora: nowDT(), autor: DB.config.responsavel || "" });
+    i.aplicacoes.push({ id: uid(), prescricaoId: pid, slot, dataHora: nowDT(), autor: nomeUsuario() || DB.config.responsavel || "" });
+    const pr0 = (i.prescricoes || []).find(x => x.id === pid);
+    registrar("Medicação aplicada", Q.nomePet(i.petId) + " · " + (pr0 ? pr0.medicamento : "") + " · " + fmtHora(slot));
     save(); render(); toast("Medicação registrada", "ok");
   });
   $$("[data-desfaz]", v).forEach(b => b.onclick = () => {
@@ -2097,7 +2156,7 @@ ROUTES.internacao = function (v, args) {
 function formInternacao(id, defaults) {
   const i = id ? Q.internacao(id) : Object.assign({
     entrada: todayISO(), horaEntrada: nowHM(), status: "Internado", gravidade: "Observação",
-    valorDiaria: DB.config.diariaPadrao || 180
+    valorDiaria: DB.config.diariaPadrao || 180, veterinario: nomeUsuario()
   }, defaults || {});
   if (!DB.pets.length) { toast("Cadastre um pet primeiro.", "err"); return; }
   const ocupados = Q.internados().filter(x => x.id !== id).map(x => x.box);
@@ -2131,6 +2190,7 @@ function formInternacao(id, defaults) {
         d.evolucoes.push({ id: uid(), dataHora: d.entrada + "T" + (d.horaEntrada || "08:00"), tipo: "Admissão", texto: "Paciente admitido. Motivo: " + d.motivo + ".", autor: d.veterinario || "" });
         DB.internacoes.push(d);
       }
+      registrar(id ? "Internação alterada" : "Paciente internado", Q.nomePet(d.petId) + " · " + (d.box || "sem leito"));
       save(); render(); toast(id ? "Internação atualizada" : "Paciente internado", "ok");
       if (!id) go("internacao/" + d.id);
     }
@@ -2260,7 +2320,9 @@ function fichaInternacao(v, id) {
       toast("Registro desfeito");
     } else {
       i.aplicacoes = i.aplicacoes || [];
-      i.aplicacoes.push({ id: uid(), prescricaoId: pid, slot, dataHora: nowDT(), autor: i.veterinario || "" });
+      i.aplicacoes.push({ id: uid(), prescricaoId: pid, slot, dataHora: nowDT(), autor: nomeUsuario() || i.veterinario || "" });
+      const pr1 = (i.prescricoes || []).find(x => x.id === pid);
+      registrar("Medicação aplicada", Q.nomePet(i.petId) + " · " + (pr1 ? pr1.medicamento : "") + " · " + fmtHora(slot));
       toast("Medicação registrada", "ok");
     }
     save(); render();
@@ -2295,7 +2357,7 @@ function formPrescricaoInt(iid, pid) {
 /* ---------- evolução ---------- */
 function formEvolucao(iid, eid) {
   const i = Q.internacao(iid);
-  const e = eid ? (i.evolucoes || []).find(x => x.id === eid) : { dataHora: nowDT(), tipo: "Evolução", autor: i.veterinario || "" };
+  const e = eid ? (i.evolucoes || []).find(x => x.id === eid) : { dataHora: nowDT(), tipo: "Evolução", autor: nomeUsuario() || i.veterinario || "" };
   openForm({
     title: eid ? "Editar evolução" : "Evolução · " + Q.nomePet(i.petId),
     size: "wide",
@@ -2399,6 +2461,7 @@ function darAlta(iid) {
         anamnese: "Internação de " + fmtD(i.entrada) + " a " + fmtD(d.saida) + " — " + (i.motivo || ""),
         prescricao: d.resumoAlta || "", valor: Number(d.total) || 0, retorno: d.retorno || "", lancar: false
       });
+      registrar("Alta de internação", Q.nomePet(i.petId) + " · " + d.status + " · " + money(Number(d.total) || 0));
       save(); go("internacao"); render(); toast("Alta registrada e prontuário atualizado", "ok");
       if (d.status === "Alta") setTimeout(() => whatsInternacao(i, "alta"), 350);
     }
@@ -2970,6 +3033,7 @@ function passoMapear(m, linhas) {
     const mapa = lerMapa();
     if (mapa.tutor.nome < 0 && mapa.pet.nome < 0) { toast("Indique ao menos a coluna do nome do tutor ou do pet.", "err"); return; }
     const r = processaLinhas(dados, mapa, false, $("#atualizar", m).checked);
+    registrar("Importação de cadastros", r.contagem.tutoresNovos + " tutor(es) e " + r.contagem.petsNovos + " pet(s) criados");
     save(); closeModal(); render();
     openModal({
       title: "Importação concluída", size: "narrow",
@@ -3094,6 +3158,360 @@ function modeloPlanilha() {
       + 'Copie o texto abaixo, cole no Excel e use “Dados → Texto para colunas” com o ponto e vírgula, ou preencha e salve como CSV.</div>'
       + '<textarea class="codebox" style="width:100%;min-height:200px">' + esc(csv) + '</textarea>'
   });
+}
+</script>
+
+<script>
+/* ==================== ACESSO DA EQUIPE ====================
+   Login por usuário e senha, três perfis de acesso e registro
+   de atividades. Tudo guardado na própria base do sistema.
+   ========================================================== */
+const PERFIS = ["Administrador", "Veterinário", "Recepção"];
+const PERMISSOES = {
+  "Administrador": "*",
+  "Veterinário": ["painel", "agenda", "atendimentos", "internacao", "banhotosa", "vacinas", "clientes", "pets", "servicos", "estoque"],
+  "Recepção": ["painel", "agenda", "banhotosa", "vacinas", "clientes", "pets", "servicos", "estoque", "financeiro"]
+};
+const SESSKEY = "nuccivet_sessao_v1";
+let SESSAO = null;
+
+/* ---------- senha ---------- */
+function novoSalt() {
+  const a = new Uint8Array(16);
+  (window.crypto || {}).getRandomValues ? crypto.getRandomValues(a) : a.forEach((_, i) => a[i] = Math.floor(Math.random() * 256));
+  return Array.from(a).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+function hashSimples(txt) {
+  /* usado quando o navegador não oferece criptografia (arquivo aberto direto do disco) */
+  let h1 = 0x811c9dc5, h2 = 0x1000193;
+  for (let i = 0; i < txt.length; i++) {
+    const c = txt.charCodeAt(i);
+    h1 = (h1 ^ c) >>> 0; h1 = (h1 * 0x01000193) >>> 0;
+    h2 = (h2 + c * (i + 7)) >>> 0; h2 = ((h2 << 5) | (h2 >>> 27)) >>> 0;
+  }
+  let saida = "";
+  for (let r = 0; r < 4; r++) {
+    h1 = (h1 * 0x01000193 + h2) >>> 0;
+    h2 = ((h2 << 7) | (h2 >>> 25)) >>> 0;
+    saida += (h1 >>> 0).toString(16).padStart(8, "0");
+  }
+  return saida;
+}
+async function hashSenha(senha, salt) {
+  const cru = salt + "::" + senha;
+  if (window.crypto && crypto.subtle && crypto.subtle.importKey) {
+    try {
+      const enc = new TextEncoder();
+      const chave = await crypto.subtle.importKey("raw", enc.encode(senha), "PBKDF2", false, ["deriveBits"]);
+      const bits = await crypto.subtle.deriveBits(
+        { name: "PBKDF2", salt: enc.encode(salt), iterations: 120000, hash: "SHA-256" }, chave, 256);
+      return { algo: "pbkdf2", hash: Array.from(new Uint8Array(bits)).map(b => b.toString(16).padStart(2, "0")).join("") };
+    } catch (e) { /* cai no modo simples */ }
+  }
+  return { algo: "simples", hash: hashSimples(cru) };
+}
+async function confereSenha(senha, registro) {
+  if (!registro || !registro.hash) return false;
+  if (registro.algo === "pbkdf2" && (!window.crypto || !crypto.subtle)) return false;
+  const r = registro.algo === "simples"
+    ? { hash: hashSimples(registro.salt + "::" + senha) }
+    : await hashSenha(senha, registro.salt);
+  return r.hash === registro.hash;
+}
+
+/* ---------- sessão e permissões ---------- */
+function usuarioAtual() { return SESSAO ? DB.usuarios.find(u => u.id === SESSAO.usuarioId) : null; }
+function nomeUsuario() { const u = usuarioAtual(); return u ? u.nome : ""; }
+function perfilAtual() { const u = usuarioAtual(); return u ? u.perfil : "Administrador"; }
+function ehAdmin() { return perfilAtual() === "Administrador"; }
+function temAcesso() { return !DB.usuarios || !DB.usuarios.filter(u => u.ativo !== false).length || !!usuarioAtual(); }
+function pode(rota) {
+  if (!DB.usuarios || !DB.usuarios.filter(u => u.ativo !== false).length) return true;
+  const p = PERMISSOES[perfilAtual()];
+  if (p === "*" || !p) return true;
+  return p.indexOf(rota) >= 0;
+}
+function podeVerDinheiro() { return perfilAtual() !== "Veterinário"; }
+function salvarSessao(lembrar) {
+  const dado = JSON.stringify({ usuarioId: SESSAO.usuarioId, desde: SESSAO.desde, ate: Date.now() + (lembrar ? 30 * 864e5 : 14 * 36e5) });
+  try { (lembrar ? localStorage : sessionStorage).setItem(SESSKEY, dado); } catch (e) { }
+}
+function lerSessao() {
+  let d = null;
+  try { d = sessionStorage.getItem(SESSKEY) || localStorage.getItem(SESSKEY); } catch (e) { }
+  if (!d) return null;
+  try {
+    const s = JSON.parse(d);
+    if (s.ate && s.ate < Date.now()) return null;
+    return DB.usuarios.some(u => u.id === s.usuarioId && u.ativo !== false) ? s : null;
+  } catch (e) { return null; }
+}
+function sair() {
+  registrar("Saiu do sistema", nomeUsuario()); save(true);
+  SESSAO = null;
+  try { sessionStorage.removeItem(SESSKEY); localStorage.removeItem(SESSKEY); } catch (e) { }
+  location.reload();
+}
+
+/* ---------- histórico de atividades ---------- */
+function registrar(acao, detalhe) {
+  if (!DB.log) DB.log = [];
+  DB.log.push({ id: uid(), quando: new Date().toISOString(), quem: nomeUsuario() || "—", perfil: perfilAtual(), acao, detalhe: detalhe || "" });
+  if (DB.log.length > 600) DB.log = DB.log.slice(-600);
+}
+function historicoAtividades() {
+  const lista = (DB.log || []).slice().reverse();
+  openModal({
+    title: "Histórico de atividades", size: "wide",
+    body: '<div class="hint">Últimos ' + lista.length + ' registros. Guardamos os 600 mais recentes.</div>'
+      + (lista.length ? '<div class="tablewrap"><table><thead><tr><th>Quando</th><th>Quem</th><th>Ação</th><th>Detalhe</th></tr></thead><tbody>'
+        + lista.slice(0, 200).map(l => '<tr><td style="white-space:nowrap">' + esc(Cloud.quando(l.quando)) + '</td>'
+          + '<td>' + esc(l.quem) + '<div class="muted" style="font-size:12px">' + esc(l.perfil || "") + '</div></td>'
+          + '<td><b>' + esc(l.acao) + '</b></td><td class="muted">' + esc(l.detalhe) + '</td></tr>').join("")
+        + '</tbody></table></div>' : '<div class="empty">Nada registrado ainda.</div>')
+  });
+}
+
+/* ---------- tela de login ---------- */
+function telaTrava(html) {
+  let t = $("#trava");
+  if (!t) { t = document.createElement("div"); t.id = "trava"; document.body.appendChild(t); }
+  t.innerHTML = '<div class="cartao"><img src="' + LOGO_FULL + '" alt="Nuccivet"><h1>Nuccivet Gestão</h1>' + html + '</div>';
+  return t;
+}
+function telaLogin(msg) {
+  const ativos = DB.usuarios.filter(u => u.ativo !== false).sort((a, b) => a.nome.localeCompare(b.nome));
+  const t = telaTrava(
+    '<p class="sub">Entre com seu usuário para continuar.</p>'
+    + (msg ? '<div class="erro">' + esc(msg) + '</div>' : "")
+    + '<form id="flogin"><div class="field"><label for="lu">Usuário</label>'
+    + '<select id="lu">' + ativos.map(u => '<option value="' + u.id + '">' + esc(u.nome) + ' — ' + esc(u.perfil) + '</option>').join("") + '</select></div>'
+    + '<div class="field" style="margin-top:10px"><label for="lp">Senha</label><input type="password" id="lp" autocomplete="current-password"></div>'
+    + '<label class="check" style="padding-top:12px"><input type="checkbox" id="lm"> Manter conectado neste computador</label>'
+    + '<button class="btn pri" id="lbtn" type="submit" style="width:100%;margin-top:14px;padding:11px">Entrar</button></form>'
+    + '<button class="btn ghost" id="lrec" style="width:100%;margin-top:8px;font-size:13px">Não consigo entrar</button>');
+  const entrar = async (e) => {
+    if (e) e.preventDefault();
+    const u = DB.usuarios.find(x => x.id === $("#lu", t).value);
+    const senha = $("#lp", t).value;
+    if (!u) return;
+    $("#lbtn", t).disabled = true; $("#lbtn", t).textContent = "Conferindo…";
+    const ok = await confereSenha(senha, u.senha);
+    if (!ok) { telaLogin("Senha incorreta. Tente de novo."); return; }
+    SESSAO = { usuarioId: u.id, desde: Date.now() };
+    salvarSessao($("#lm", t).checked);
+    u.ultimoAcesso = new Date().toISOString();
+    registrar("Entrou no sistema", u.perfil);
+    save(true);
+    t.remove();
+    iniciarApp();
+    toast("Bem-vindo(a), " + u.nome.split(" ")[0] + "!", "ok");
+  };
+  $("#flogin", t).onsubmit = entrar;
+  $("#lrec", t).onclick = () => telaRecuperar();
+  setTimeout(() => { const i = $("#lp", t); if (i) i.focus(); }, 60);
+}
+function telaRecuperar() {
+  const t = telaTrava(
+    '<p class="sub">Use o código de recuperação que você guardou ao criar o acesso de administrador.</p>'
+    + '<div class="field"><label for="rc">Código de recuperação</label><input id="rc" placeholder="XXXX-XXXX" autocomplete="off"></div>'
+    + '<div class="field" style="margin-top:10px"><label for="rs">Nova senha do administrador</label><input type="password" id="rs" autocomplete="new-password"></div>'
+    + '<button class="btn pri" id="rbtn" style="width:100%;margin-top:14px;padding:11px">Redefinir e entrar</button>'
+    + '<button class="btn ghost" id="rvolta" style="width:100%;margin-top:8px;font-size:13px">‹ Voltar</button>'
+    + '<div class="aviso">Sem o código, o jeito é restaurar um backup anterior ao login, em outro navegador.</div>');
+  $("#rvolta", t).onclick = () => telaLogin();
+  $("#rbtn", t).onclick = async () => {
+    const cod = $("#rc", t).value.trim().toUpperCase();
+    const nova = $("#rs", t).value;
+    if (!DB.recuperacao) { toast("Esta base não tem código de recuperação.", "err"); return; }
+    if (nova.length < 4) { toast("A nova senha precisa ter ao menos 4 caracteres.", "err"); return; }
+    if (!(await confereSenha(cod, DB.recuperacao))) { toast("Código não confere.", "err"); return; }
+    const admin = DB.usuarios.find(u => u.perfil === "Administrador" && u.ativo !== false) || DB.usuarios[0];
+    const salt = novoSalt();
+    const h = await hashSenha(nova, salt);
+    admin.senha = { salt, algo: h.algo, hash: h.hash };
+    SESSAO = { usuarioId: admin.id, desde: Date.now() };
+    salvarSessao(false);
+    registrar("Senha do administrador redefinida pelo código de recuperação", admin.nome);
+    save(true);
+    t.remove(); iniciarApp();
+    toast("Senha redefinida", "ok");
+  };
+}
+function telaPrimeiroAcesso(obrigatorio) {
+  const t = telaTrava(
+    '<p class="sub">Proteja o sistema com uma senha antes de a equipe começar a usar.</p>'
+    + '<div class="field"><label for="pn">Seu nome</label><input id="pn" value="' + esc(DB.config.responsavel || "") + '"></div>'
+    + '<div class="field" style="margin-top:10px"><label for="pp">Senha</label><input type="password" id="pp" autocomplete="new-password"></div>'
+    + '<div class="field" style="margin-top:10px"><label for="pp2">Repita a senha</label><input type="password" id="pp2" autocomplete="new-password"></div>'
+    + '<button class="btn pri" id="pbtn" style="width:100%;margin-top:14px;padding:11px">Criar acesso de administrador</button>'
+    + (obrigatorio ? "" : '<button class="btn ghost" id="pdepois" style="width:100%;margin-top:8px;font-size:13px">Agora não, continuar sem senha</button>')
+    + '<div class="aviso">Depois você cadastra a equipe em Configurações → Equipe e acessos.</div>');
+  if (!obrigatorio) $("#pdepois", t).onclick = () => { t.remove(); iniciarApp(); };
+  $("#pbtn", t).onclick = async () => {
+    const nome = $("#pn", t).value.trim(), s1 = $("#pp", t).value, s2 = $("#pp2", t).value;
+    if (!nome) { toast("Escreva seu nome.", "err"); return; }
+    if (s1.length < 4) { toast("A senha precisa ter ao menos 4 caracteres.", "err"); return; }
+    if (s1 !== s2) { toast("As senhas não são iguais.", "err"); return; }
+    const salt = novoSalt(), h = await hashSenha(s1, salt);
+    const u = {
+      id: uid(), nome, usuario: slug(nome).split(" ")[0], perfil: "Administrador", ativo: true,
+      senha: { salt, algo: h.algo, hash: h.hash }, criadoEm: todayISO()
+    };
+    DB.usuarios = [u];
+    if (DB.config.profissionais.indexOf(nome) < 0) DB.config.profissionais.unshift(nome);
+    /* código de recuperação */
+    const cod = (novoSalt().toUpperCase().replace(/[^A-Z0-9]/g, "") + "ABCD2345").slice(0, 4) + "-" + (novoSalt().toUpperCase().replace(/[^A-Z0-9]/g, "") + "EFGH6789").slice(0, 4);
+    const salt2 = novoSalt(), h2 = await hashSenha(cod, salt2);
+    DB.recuperacao = { salt: salt2, algo: h2.algo, hash: h2.hash };
+    SESSAO = { usuarioId: u.id, desde: Date.now() };
+    salvarSessao(false);
+    registrar("Acesso de administrador criado", nome);
+    save(true);
+    t.remove(); iniciarApp();
+    mostrarCodigo(cod);
+  };
+}
+function mostrarCodigo(cod) {
+  openModal({
+    title: "Guarde o código de recuperação", size: "narrow",
+    body: '<div class="hint">Este código é a única forma de voltar a entrar se a senha do administrador for esquecida. Ele não aparece de novo.</div>'
+      + '<div class="codebox" style="text-align:center;font-size:22px;letter-spacing:4px;padding:16px">' + esc(cod) + '</div>'
+      + '<div class="alert warn" style="margin-top:10px"><span>⚠</span><div>Anote em papel ou salve no seu gerenciador de senhas agora.</div></div>',
+    footer: '<button class="btn pri" data-close>Guardei</button>'
+  });
+}
+
+/* ---------- equipe (Configurações) ---------- */
+function telaEquipe() {
+  if (!ehAdmin()) { toast("Só o administrador gerencia a equipe.", "err"); return; }
+  const lista = DB.usuarios.slice().sort((a, b) => a.nome.localeCompare(b.nome));
+  openModal({
+    title: "Equipe e acessos", size: "wide",
+    body: '<div class="hint">Cada pessoa entra com o próprio usuário. O perfil define o que ela enxerga no sistema.</div>'
+      + tabela([{ t: "Nome" }, { t: "Perfil" }, { t: "Situação" }, { t: "Último acesso" }, { t: "" }],
+        lista.map(u => '<tr><td><b>' + esc(u.nome) + '</b></td><td>' + esc(u.perfil) + '</td>'
+          + '<td>' + (u.ativo === false ? '<span class="pill dang">inativo</span>' : '<span class="pill ok">ativo</span>') + '</td>'
+          + '<td class="muted">' + (u.ultimoAcesso ? esc(Cloud.quando(u.ultimoAcesso)) : "—") + '</td>'
+          + '<td class="acts"><button class="btn sm" data-eu="' + u.id + '">Editar</button></td></tr>'), "Ninguém cadastrado."),
+    footer: '<button class="btn" data-close>Fechar</button><button class="btn pri" id="novou">+ Nova pessoa</button>',
+    onMount: (o) => {
+      $("#novou", o).onclick = () => { closeModal(); formUsuario(null); };
+      $$("[data-eu]", o).forEach(b => b.onclick = () => { closeModal(); formUsuario(b.dataset.eu); });
+    }
+  });
+}
+function formUsuario(id) {
+  const u = id ? DB.usuarios.find(x => x.id === id) : { perfil: "Recepção", ativo: true };
+  const souEu = id && SESSAO && SESSAO.usuarioId === id;
+  openForm({
+    title: id ? "Editar acesso" : "Nova pessoa na equipe",
+    values: u,
+    fields: [
+      { k: "nome", label: "Nome", col: "c8", required: true },
+      { k: "perfil", label: "Perfil de acesso", type: "select", col: "c4", options: PERFIS },
+      { k: "senha1", label: id ? "Nova senha (deixe em branco para manter)" : "Senha", type: "password", col: "c6", required: !id },
+      { k: "senha2", label: "Repita a senha", type: "password", col: "c6", required: !id },
+      { k: "ativo", label: "Pode entrar no sistema", type: "checkbox", col: "c6" },
+      {
+        k: "aviso", label: "O que este perfil acessa", type: "static", col: "c12",
+        html: '<div style="font-size:13px" class="muted">Administrador: tudo, inclusive financeiro, relatórios e configurações.<br>'
+          + 'Veterinário: agenda, prontuário, internação, vacinas, cadastros e estoque — sem financeiro nem relatórios.<br>'
+          + 'Recepção: agenda, cadastros, banho e tosa, vacinas, estoque e caixa — sem prontuário clínico nem relatórios.</div>'
+      }
+    ],
+    del: (id && !souEu) ? () => {
+      DB.usuarios = DB.usuarios.filter(x => x.id !== id);
+      registrar("Acesso removido", u.nome); save(); render(); toast("Acesso removido");
+    } : null,
+    validate: (d) => {
+      if (d.senha1 || d.senha2) {
+        if (d.senha1.length < 4) return "A senha precisa ter ao menos 4 caracteres.";
+        if (d.senha1 !== d.senha2) return "As senhas não são iguais.";
+      }
+      if (souEu && d.perfil !== "Administrador") return "Você não pode tirar o próprio acesso de administrador.";
+      if (souEu && !d.ativo) return "Você não pode desativar o próprio acesso.";
+      return null;
+    },
+    onSave: async (d) => {
+      const novo = !id;
+      const alvo = id ? u : { id: uid(), criadoEm: todayISO() };
+      alvo.nome = d.nome; alvo.perfil = d.perfil; alvo.ativo = !!d.ativo;
+      alvo.usuario = slug(d.nome).split(" ")[0];
+      if (d.senha1) {
+        const salt = novoSalt(), h = await hashSenha(d.senha1, salt);
+        alvo.senha = { salt, algo: h.algo, hash: h.hash };
+      }
+      if (novo) DB.usuarios.push(alvo);
+      if (DB.config.profissionais.indexOf(d.nome) < 0) DB.config.profissionais.push(d.nome);
+      registrar(novo ? "Pessoa adicionada à equipe" : "Acesso alterado", d.nome + " · " + d.perfil);
+      save(); render();
+      toast(novo ? "Acesso criado" : "Acesso atualizado", "ok");
+    }
+  });
+}
+function trocarMinhaSenha() {
+  const u = usuarioAtual();
+  if (!u) { toast("Nenhum usuário conectado.", "err"); return; }
+  openForm({
+    title: "Trocar minha senha", size: "narrow",
+    values: {},
+    fields: [
+      { k: "atual", label: "Senha atual", type: "password", col: "c12", required: true },
+      { k: "nova", label: "Nova senha", type: "password", col: "c12", required: true },
+      { k: "nova2", label: "Repita a nova senha", type: "password", col: "c12", required: true }
+    ],
+    validate: (d) => d.nova.length < 4 ? "A nova senha precisa ter ao menos 4 caracteres."
+      : (d.nova !== d.nova2 ? "As senhas não são iguais." : null),
+    onSave: async (d) => {
+      if (!(await confereSenha(d.atual, u.senha))) { toast("Senha atual incorreta.", "err"); return; }
+      const salt = novoSalt(), h = await hashSenha(d.nova, salt);
+      u.senha = { salt, algo: h.algo, hash: h.hash };
+      registrar("Trocou a própria senha", u.nome);
+      save(); toast("Senha alterada", "ok");
+    }
+  });
+}
+function menuUsuario() {
+  const u = usuarioAtual();
+  if (!u) { telaPrimeiroAcesso(false); return; }
+  openModal({
+    title: u.nome, size: "narrow",
+    body: '<dl class="kv"><dt>Perfil</dt><dd>' + esc(u.perfil) + '</dd>'
+      + '<dt>Entrou em</dt><dd>' + esc(Cloud.quando(new Date(SESSAO.desde).toISOString())) + '</dd></dl>',
+    footer: '<button class="btn" id="usenha" style="margin-right:auto">Trocar senha</button>'
+      + '<button class="btn" data-close>Fechar</button><button class="btn dang" id="usair">Sair</button>',
+    onMount: (o) => {
+      $("#usenha", o).onclick = () => { closeModal(); trocarMinhaSenha(); };
+      $("#usair", o).onclick = () => { closeModal(); sair(); };
+    }
+  });
+}
+
+/* ---------- entrada do sistema ---------- */
+function iniciarApp() {
+  $("#app").hidden = false;
+  if (!location.hash) location.hash = "#/painel";
+  render();
+  atualizaChipUsuario();
+  Cloud.start();
+}
+function atualizaChipUsuario() {
+  const el = $("#chipuser");
+  if (!el) return;
+  const u = usuarioAtual();
+  el.hidden = false;
+  el.innerHTML = u
+    ? '<span class="ini">' + esc((u.nome[0] || "?").toUpperCase()) + '</span><span class="gr" style="min-width:0"><b>' + esc(u.nome.split(" ")[0]) + '</b><i>' + esc(u.perfil) + '</i></span>'
+    : '<span class="ini">+</span><span class="gr"><b>Proteger com senha</b><i>sem login</i></span>';
+}
+function abrirAcesso() {
+  SESSAO = lerSessao();
+  const ativos = (DB.usuarios || []).filter(u => u.ativo !== false);
+  if (!ativos.length) { $("#app").hidden = false; iniciarApp(); return; }
+  if (SESSAO && DB.usuarios.some(u => u.id === SESSAO.usuarioId && u.ativo !== false)) { iniciarApp(); return; }
+  $("#app").hidden = true;
+  telaLogin();
 }
 </script>
 
@@ -3408,10 +3826,9 @@ function novoRapido() {
   applyTheme(tema);
 
   loadDB();
-  if (!location.hash) location.hash = "#/painel";
-  render();
-  Cloud.start();
+  abrirAcesso();
 
+  $("#chipuser").onclick = menuUsuario;
   $("#burger").onclick = () => {
     const n = $("#nav");
     n.classList.add("open");
