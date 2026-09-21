@@ -2855,7 +2855,7 @@ function parseCSV(texto) {
 function normEspecie(v) {
   const s = slug(v);
   if (!s) return "Cão";
-  if (/can|cach|dog|srd/.test(s)) return "Cão";
+  if (/^cao|caes|can|cach|dog|srd/.test(s)) return "Cão";
   if (/fel|gat|cat/.test(s)) return "Gato";
   if (/ave|passar|papag|calop|periquit|canar/.test(s)) return "Ave";
   if (/roed|hamst|coelh|porquinho|chinchil|gerbi/.test(s)) return "Roedor";
@@ -3016,7 +3016,7 @@ function passoMapear(m, linhas) {
     $("#previa", m).innerHTML = '<div class="sec-title"><h2 style="font-size:14px">Prévia</h2><div class="line"></div></div>'
       + '<div class="kpis" style="margin-bottom:10px">'
       + kpi("Tutores novos", r.contagem.tutoresNovos, "serão criados", "g")
-      + kpi("Tutores já cadastrados", r.contagem.tutoresExistentes, "não duplicam", "")
+      + kpi("Já estavam no sistema", r.contagem.tutoresExistentes, "tutores mantidos, sem duplicar", "")
       + kpi("Pets novos", r.contagem.petsNovos, "serão criados", "g")
       + kpi("Linhas ignoradas", r.contagem.ignoradas, "sem nome de tutor ou pet", r.contagem.ignoradas ? "w" : "")
       + '</div>'
@@ -3061,7 +3061,7 @@ function processaLinhas(dados, mapa, simulacao, atualizar) {
     : "n:" + slug(c.nome) + "|" + digitos(c.telefone).slice(-8);
   const indice = {};
   DB.clientes.forEach(c => { indice[chaveTutor(c)] = c; if (!indice["n:" + slug(c.nome) + "|"]) indice["n:" + slug(c.nome) + "|"] = c; });
-  const novosTutores = {};
+  const novosTutores = {}, criadosAgora = {}, contadosAgora = {};
 
   dados.forEach(linha => {
     const t = {}, p = {};
@@ -3081,8 +3081,8 @@ function processaLinhas(dados, mapa, simulacao, atualizar) {
       const ch = t.nome ? chaveTutor(t) : "";
       const jaExiste = t.nome ? (indice[ch] || indice["n:" + slug(t.nome) + "|"]) : null;
       if (t.nome) {
-        if (jaExiste || novosTutores[ch]) contagem.tutoresExistentes++;
-        else { contagem.tutoresNovos++; novosTutores[ch] = true; }
+        if (jaExiste) { if (!novosTutores["x" + jaExiste.id]) { contagem.tutoresExistentes++; novosTutores["x" + jaExiste.id] = true; } }
+        else if (!novosTutores[ch]) { contagem.tutoresNovos++; novosTutores[ch] = true; }
       }
       if (p.nome) {
         if (jaExiste && DB.pets.some(x => x.clienteId === jaExiste.id && slug(x.nome) === slug(p.nome))) contagem.petsExistentes++;
@@ -3096,8 +3096,10 @@ function processaLinhas(dados, mapa, simulacao, atualizar) {
     if (t.nome) {
       const ch = chaveTutor(t);
       cliente = indice[ch] || indice["n:" + slug(t.nome) + "|"];
-      if (cliente) {
-        contagem.tutoresExistentes++;
+      if (cliente && criadosAgora[cliente.id]) {
+        /* mesma pessoa em outra linha (tutor com mais de um pet) */
+      } else if (cliente) {
+        if (!contadosAgora[cliente.id]) { contagem.tutoresExistentes++; contadosAgora[cliente.id] = true; }
         if (atualizar) {
           let mudou = false;
           ["telefone", "cpf", "email", "endereco", "bairro", "cidade", "obs"].forEach(k => {
@@ -3111,6 +3113,7 @@ function processaLinhas(dados, mapa, simulacao, atualizar) {
           endereco: t.endereco, bairro: t.bairro, cidade: t.cidade, obs: t.obs, criadoEm: todayISO()
         };
         DB.clientes.push(cliente);
+        criadosAgora[cliente.id] = true;
         indice[chaveTutor(cliente)] = cliente;
         indice["n:" + slug(cliente.nome) + "|"] = cliente;
         contagem.tutoresNovos++;
