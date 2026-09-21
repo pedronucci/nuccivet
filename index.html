@@ -393,7 +393,7 @@ function emptyDB() {
     meta: { version: 1, updatedAt: new Date().toISOString(), device: uid() },
     config: {
       nome: "Nuccivet Clínica Veterinária", cnpj: "", telefone: "", whatsapp: "", email: "", endereco: "",
-      responsavel: "", crmv: "", abertura: "08:00", fechamento: "19:00",
+      responsavel: "", crmv: "", registroMapa: "MV00810602025", abertura: "08:00", fechamento: "19:00",
       profissionais: ["Dr(a). Responsável", "Auxiliar", "Tosador(a)"],
       boxes: ["Box 1", "Box 2", "Box 3", "Box 4", "Isolamento", "Felinos 1", "Felinos 2"],
       diariaPadrao: 180
@@ -1819,6 +1819,7 @@ ROUTES.config = function (v) {
     + '<div class="c12"><div class="field"><label for="cend">Endereço</label><input id="cend" value="' + esc(c.endereco) + '"></div></div>'
     + '<div class="c8"><div class="field"><label for="cresp">Responsável técnico</label><input id="cresp" value="' + esc(c.responsavel) + '"></div></div>'
     + '<div class="c4"><div class="field"><label for="ccrmv">CRMV</label><input id="ccrmv" value="' + esc(c.crmv) + '"></div></div>'
+    + '<div class="c4"><div class="field"><label for="cmapa">Registro no MAPA</label><input id="cmapa" value="' + esc(c.registroMapa || '') + '" placeholder="MV00000000000"></div></div>'
     + '<div class="c12"><div class="field"><label for="cprof">Equipe (um nome por linha)</label><textarea id="cprof">' + esc((c.profissionais || []).join("\n")) + '</textarea></div></div>'
     + '<div class="c8"><div class="field"><label for="cbox">Leitos de internação (um por linha)</label><textarea id="cbox">' + esc((c.boxes || []).join("\n")) + '</textarea></div></div>'
     + '<div class="c4"><div class="field"><label for="cdia">Diária de internação (R$)</label><input id="cdia" type="number" step="0.01" value="' + (c.diariaPadrao || 0) + '"><span style="font-size:11.5px;color:var(--ink-3)">Valor sugerido ao internar um paciente.</span></div></div>'
@@ -1894,7 +1895,7 @@ ROUTES.config = function (v) {
 
   $("#salvarcfg", v).onclick = () => {
     c.nome = $("#cnome", v).value; c.telefone = $("#ctel", v).value; c.endereco = $("#cend", v).value;
-    c.whatsapp = $("#cwa", v).value; c.email = $("#cmail", v).value;
+    c.whatsapp = $("#cwa", v).value; c.email = $("#cmail", v).value; c.registroMapa = $("#cmapa", v).value.trim();
     c.cnpj = $("#ccnpj", v).value; c.responsavel = $("#cresp", v).value; c.crmv = $("#ccrmv", v).value;
     c.profissionais = $("#cprof", v).value.split("\n").map(s => s.trim()).filter(Boolean);
     c.boxes = $("#cbox", v).value.split("\n").map(s => s.trim()).filter(Boolean);
@@ -2771,7 +2772,7 @@ function imprimirPrescricao(a) {
     + '<div class="cab"><img src="' + LOGO_FULL + '" alt="">'
     + '<div class="ident"><h1>' + esc(cfg.nome || "Clínica Veterinária") + '</h1>'
     + (cfg.responsavel ? '<div class="rt">' + esc(cfg.responsavel) + (cfg.crmv ? " · CRMV " + esc(cfg.crmv) : "") + '</div>' : "")
-    + (cfg.cnpj ? '<div class="cnpj">CNPJ ' + esc(cfg.cnpj) + '</div>' : "")
+    + (cfg.cnpj || cfg.registroMapa ? '<div class="cnpj">' + [cfg.cnpj ? 'CNPJ ' + esc(cfg.cnpj) : '', cfg.registroMapa ? 'Registro no MAPA ' + esc(cfg.registroMapa) : ''].filter(Boolean).join(' · ') + '</div>' : "")
     + '</div>'
     + (contato.length ? '<div class="contato">' + contato.map(x => '<span><b>' + esc(x.r) + '</b>' + esc(x.v) + '</span>').join("") + '</div>' : "")
     + '</div><div class="regua"></div>'
@@ -2807,6 +2808,7 @@ function imprimirPrescricao(a) {
     + '<div class="assina"><div class="bloco"><div class="linha"></div>'
     + '<div class="quem">' + esc(a.profissional || cfg.responsavel || "Médico(a) Veterinário(a)") + '</div>'
     + '<div class="crmv">Médico(a) Veterinário(a)' + (cfg.crmv ? " · CRMV " + esc(cfg.crmv) : "") + '</div>'
+    + (cfg.registroMapa ? '<div class="crmv">Registro no MAPA ' + esc(cfg.registroMapa) + '</div>' : "")
     + (assinaturaEletronica ? '<div class="eletronica"><b>Documento assinado eletronicamente</b><br>'
       + esc(a.assinatura) + (a.assinadaEm ? " · " + fmtD(a.assinadaEm) : "")
       + (a.linkAssinado ? '<br>Verificação: ' + esc(a.linkAssinado) : "") + '</div>' : "")
