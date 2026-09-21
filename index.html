@@ -249,6 +249,8 @@ td.acts{text-align:right;white-space:nowrap}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:13.5px}
 .kv dt{color:var(--ink-3);font-weight:600}
 .kv dd{margin:0}
+.pre{white-space:pre-line}
+.curto{display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
 .sheet{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r);padding:11px 13px}
 .codebox{background:var(--surface-3);border:1px solid var(--line);border-radius:var(--r-sm);padding:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;white-space:pre-wrap;word-break:break-word;max-height:220px;overflow:auto}
 
@@ -370,7 +372,12 @@ function idade(nasc) {
 }
 const ESPECIES = ["Cão", "Gato", "Ave", "Roedor", "Réptil", "Outro"];
 const ICONE = { "Cão": "🐶", "Gato": "🐱", "Ave": "🦜", "Roedor": "🐹", "Réptil": "🦎", "Outro": "🐾" };
-const FORMAS = ["Dinheiro", "Pix", "Débito", "Crédito", "Transferência", "Fiado"];
+const FORMAS = ["Dinheiro", "Pix", "Débito", "Crédito", "Transferência", "Fiado", "Outros"];
+/* agendamento sem pet (compromisso) mostra o título no lugar do nome do animal */
+const rotuloAg = (a) => a.petId ? Q.nomePet(a.petId) : (a.titulo || "Compromisso");
+/* registros de prontuário que não são um atendimento presencial */
+const TIPOS_REGISTRO = ["Receita", "Pesagem", "Anexo", "Documento"];
+const ehAtendimento = (a) => TIPOS_REGISTRO.indexOf(a.tipo) < 0;
 const STATUS_AG = ["Agendado", "Confirmado", "Em atendimento", "Concluído", "Faltou", "Cancelado"];
 const TIPOS_AG = ["Consulta", "Retorno", "Vacina", "Banho", "Tosa", "Banho e tosa", "Exame", "Cirurgia", "Internação"];
 const isBT = (t) => ["Banho", "Tosa", "Banho e tosa"].indexOf(t) >= 0;
@@ -781,7 +788,7 @@ ROUTES.painel = function (v) {
   const hoje = todayISO();
   const mes = hoje.slice(0, 7);
   const agHoje = Q.agendaDe(hoje).filter(a => a.status !== "Cancelado");
-  const atendMes = DB.atendimentos.filter(a => a.data.slice(0, 7) === mes);
+  const atendMes = DB.atendimentos.filter(a => a.data.slice(0, 7) === mes && ehAtendimento(a));
   const recMes = DB.financeiro.filter(l => l.tipo === "Receita" && l.data.slice(0, 7) === mes).reduce((s, l) => s + l.valor, 0);
   const despMes = DB.financeiro.filter(l => l.tipo === "Despesa" && l.data.slice(0, 7) === mes).reduce((s, l) => s + l.valor, 0);
   const pendentes = DB.financeiro.filter(l => l.status === "Pendente");
@@ -814,7 +821,7 @@ ROUTES.painel = function (v) {
     const p = Q.pet(a.petId);
     return '<div class="agitem"><span class="hr">' + esc(a.hora) + '</span>'
       + '<span class="avatar">' + (p ? (ICONE[p.especie] || "🐾") : "🐾") + '</span>'
-      + '<div class="gr"><b>' + esc(p ? p.nome : "—") + '</b> <span class="muted">· ' + esc(Q.nomeCliente(a.clienteId)) + '</span>'
+      + '<div class="gr"><b>' + esc(rotuloAg(a)) + '</b>' + (a.clienteId ? ' <span class="muted">· ' + esc(Q.nomeCliente(a.clienteId)) + '</span>' : '')
       + '<div style="font-size:12.5px" class="muted">' + esc(a.tipo) + (a.profissional ? " · " + esc(a.profissional) : "") + '</div></div>'
       + statusPill(a.status)
       + '<button class="btn sm" data-ag="' + a.id + '">Abrir</button></div>';
@@ -1075,8 +1082,10 @@ function fichaPet(v, id) {
   h += '<div class="card"><h3>Prontuário</h3><div class="hint">' + atend.length + ' atendimento(s) registrado(s).</div>';
   h += atend.length ? '<div class="timeline">' + atend.map(a => '<div class="tl"><div class="row" style="justify-content:space-between"><b>' + fmtD(a.data) + ' — ' + esc(a.tipo || "Consulta") + '</b><span class="muted" style="font-size:12.5px">' + esc(a.profissional || "") + '</span></div>'
     + '<div style="font-size:13.5px">' + (a.peso ? '<span class="pill">' + a.peso + ' kg</span> ' : "") + (a.temperatura ? '<span class="pill">' + a.temperatura + ' °C</span> ' : "") + (a.diagnostico ? '<span class="pill brand">' + esc(a.diagnostico) + '</span>' : "") + '</div>'
-    + (a.anamnese ? '<div class="muted" style="font-size:13.5px;margin-top:3px">' + esc(a.anamnese) + '</div>' : "")
-    + (a.prescricao ? '<div class="sheet" style="margin-top:6px;font-size:13px"><b>Prescrição:</b> ' + esc(a.prescricao) + '</div>' : "")
+    + (a.anamnese ? '<div class="muted pre curto" style="font-size:13.5px;margin-top:3px">' + esc(a.anamnese) + '</div>' : "")
+    + (a.exame && !ehAtendimento(a) ? '<div class="pre" style="font-size:13px;margin-top:4px">' + esc(a.exame) + '</div>' : "")
+    + (a.prescricao ? '<div class="sheet pre" style="margin-top:6px;font-size:13px"><b>' + (a.tipo === "Receita" ? "Receita:" : "Prescrição:") + '</b>\n' + esc(a.prescricao) + '</div>' : "")
+    + (a.link ? '<a class="btn sm" href="' + esc(a.link) + '" target="_blank" rel="noopener" style="margin-top:6px">Abrir arquivo</a>' : "")
     + '<div class="row noprint" style="margin-top:5px"><button class="btn sm ghost" data-at="' + a.id + '">Abrir</button>'
     + (a.prescricao ? '<button class="btn sm ghost" data-wr="' + a.id + '" style="color:var(--accent)">Enviar receita</button>' : "")
     + (a.assinatura && a.assinatura !== "Não assinada" ? '<span class="pill ok">' + esc(a.assinatura) + '</span>' : "") + '</div></div>').join("") + '</div>'
@@ -1158,7 +1167,7 @@ ROUTES.agenda = function (v) {
     h += '<div class="card">' + (evs.length ? evs.map(a => {
       const p = Q.pet(a.petId);
       return '<div class="agitem"><span class="hr">' + esc(a.hora) + '</span><span class="avatar">' + (p ? (ICONE[p.especie] || "🐾") : "🐾") + '</span>'
-        + '<div class="gr"><b>' + esc(p ? p.nome : "—") + '</b> <span class="muted">· ' + esc(Q.nomeCliente(a.clienteId)) + '</span>'
+        + '<div class="gr"><b>' + esc(rotuloAg(a)) + '</b>' + (a.clienteId ? ' <span class="muted">· ' + esc(Q.nomeCliente(a.clienteId)) + '</span>' : '')
         + '<div class="muted" style="font-size:12.5px">' + esc(a.tipo) + (a.profissional ? " · " + esc(a.profissional) : "") + (a.obs ? " · " + esc(a.obs) : "") + '</div></div>'
         + '<span class="mono">' + (a.valor ? money(a.valor) : "") + '</span>' + statusPill(a.status)
         + '<button class="btn sm" data-ag="' + a.id + '">Abrir</button></div>';
@@ -1169,7 +1178,7 @@ ROUTES.agenda = function (v) {
     .sort((a, b) => (a.data + a.hora).localeCompare(b.data + b.hora)).slice(0, 6);
   if (prox.length) h += '<div class="sec-title"><h2>Próximos dias</h2><div class="line"></div></div>'
     + '<div class="card">' + prox.map(a => '<div class="agitem"><span class="hr" style="min-width:74px">' + fmtDshort(a.data) + ' ' + esc(a.hora) + '</span>'
-      + '<div class="gr"><b>' + esc(Q.nomePet(a.petId)) + '</b> <span class="muted">· ' + esc(a.tipo) + '</span></div>'
+      + '<div class="gr"><b>' + esc(rotuloAg(a)) + '</b> <span class="muted">· ' + esc(a.tipo) + '</span></div>'
       + statusPill(a.status) + '<button class="btn sm" data-ag="' + a.id + '">Abrir</button></div>').join("") + '</div>';
 
   v.innerHTML = h;
@@ -1187,7 +1196,7 @@ function evHTML(a) {
   const cls = a.status === "Cancelado" ? "canc" : a.status === "Concluído" ? "done" : "";
   const kind = isBT(a.tipo) ? "bt" : a.tipo === "Vacina" ? "vac" : "";
   return '<div class="ev ' + kind + ' ' + cls + '" data-ev="' + a.id + '" title="' + esc(a.tipo + " · " + a.status) + '">'
-    + '<b>' + esc(a.hora) + ' ' + esc(Q.nomePet(a.petId)) + '</b>' + esc(a.tipo) + '</div>';
+    + '<b>' + esc(a.hora) + ' ' + esc(rotuloAg(a)) + '</b>' + esc(a.tipo) + '</div>';
 }
 function formAgendamento(id, defaults) {
   const a = id ? DB.agenda.find(x => x.id === id) : Object.assign({ data: todayISO(), hora: "09:00", status: "Agendado", tipo: "Consulta", profissional: nomeUsuario() }, defaults || {});
@@ -1196,8 +1205,9 @@ function formAgendamento(id, defaults) {
     title: id ? "Editar agendamento" : "Novo agendamento",
     values: a,
     fields: [
-      { k: "petId", label: "Pet", type: "select", col: "c6", options: selPets, required: true },
+      { k: "petId", label: "Pet", type: "select", col: "c6", options: selPets, blank: "— sem pet (compromisso) —" },
       { k: "tipo", label: "Serviço", type: "select", col: "c6", options: TIPOS_AG },
+      { k: "titulo", label: "Descrição (quando não há pet)", col: "c12", placeholder: "Ex.: Limpeza de ferida — Bella (tutora liga antes)" },
       { k: "data", label: "Data", type: "date", col: "c4", required: true },
       { k: "hora", label: "Hora", type: "time", col: "c4", required: true },
       { k: "status", label: "Situação", type: "select", col: "c4", options: STATUS_AG },
@@ -1207,6 +1217,7 @@ function formAgendamento(id, defaults) {
       { k: "obs", label: "Observações", type: "textarea", col: "c12", placeholder: "Tosa na máquina 3, pet agitado, etc." }
     ],
     del: id ? () => { DB.agenda = DB.agenda.filter(x => x.id !== id); save(); render(); toast("Agendamento excluído"); } : null,
+    validate: (d) => (!d.petId && !d.titulo) ? "Escolha o pet ou escreva uma descrição para o compromisso." : null,
     onSave: (d) => {
       const pet = Q.pet(d.petId);
       d.clienteId = pet ? pet.clienteId : "";
@@ -1221,7 +1232,7 @@ function abrirAgendamento(id) {
   if (!a) return;
   const p = Q.pet(a.petId);
   const body = '<dl class="kv" style="font-size:14.5px">'
-    + '<dt>Pet</dt><dd><b>' + esc(p ? p.nome : "—") + '</b> ' + (p ? esc("(" + (p.raca || p.especie) + ", " + idade(p.nascimento) + ")") : "") + '</dd>'
+    + '<dt>' + (p ? 'Pet' : 'Compromisso') + '</dt><dd><b>' + esc(rotuloAg(a)) + '</b> ' + (p ? esc("(" + (p.raca || p.especie) + ", " + idade(p.nascimento) + ")") : "") + '</dd>'
     + '<dt>Tutor</dt><dd>' + esc(Q.nomeCliente(a.clienteId)) + (Q.cliente(a.clienteId) && Q.cliente(a.clienteId).telefone ? " · " + esc(Q.cliente(a.clienteId).telefone) : "") + '</dd>'
     + '<dt>Quando</dt><dd>' + weekdayName(a.data) + ", " + fmtD(a.data) + " às " + esc(a.hora) + '</dd>'
     + '<dt>Serviço</dt><dd>' + esc(a.tipo) + (a.valor ? " · " + money(a.valor) : "") + '</dd>'
@@ -1251,7 +1262,7 @@ function abrirAgendamento(id) {
 function lancarReceita(a) {
   DB.financeiro.push({
     id: uid(), data: a.data, tipo: "Receita", categoria: isBT(a.tipo) ? "Banho e tosa" : "Serviços clínicos",
-    descricao: a.tipo + " — " + Q.nomePet(a.petId), valor: Number(a.valor) || 0,
+    descricao: a.tipo + " — " + rotuloAg(a), valor: Number(a.valor) || 0,
     forma: "Dinheiro", status: "Pago", clienteId: a.clienteId, ref: a.id
   });
 }
@@ -1307,7 +1318,7 @@ function formAtendimento(id, defaults) {
     fields: [
       { k: "petId", label: "Pet", type: "select", col: "c6", options: selPets, required: true },
       { k: "data", label: "Data", type: "date", col: "c3", required: true },
-      { k: "tipo", label: "Tipo", type: "select", col: "c3", options: ["Consulta", "Retorno", "Emergência", "Exame", "Cirurgia", "Vacina"] },
+      { k: "tipo", label: "Tipo", type: "select", col: "c3", options: ["Consulta", "Retorno", "Emergência", "Exame", "Cirurgia", "Vacina", "Internação", "Receita", "Pesagem", "Documento", "Anexo"] },
       { k: "peso", label: "Peso (kg)", type: "number", step: "0.1", col: "c3" },
       { k: "temperatura", label: "Temp. (°C)", type: "number", step: "0.1", col: "c3" },
       { k: "fc", label: "FC (bpm)", type: "number", col: "c3" },
@@ -1378,7 +1389,7 @@ ROUTES.banhotosa = function (v) {
         + (its.length ? its.map(a => {
           const p = Q.pet(a.petId);
           return '<div class="agitem"><span class="avatar">' + (p ? (ICONE[p.especie] || "🐾") : "🐾") + '</span>'
-            + '<div class="gr"><b>' + esc(Q.nomePet(a.petId)) + '</b> <span class="muted">' + esc(a.hora) + '</span>'
+            + '<div class="gr"><b>' + esc(rotuloAg(a)) + '</b> <span class="muted">' + esc(a.hora) + '</span>'
             + '<div class="muted" style="font-size:12.5px">' + esc(a.tipo) + (p && p.porte ? " · " + esc(p.porte) : "") + (a.levaTraz ? " · 🚐 leva e traz" : "") + '</div>'
             + (a.obs ? '<div class="muted" style="font-size:12px">' + esc(a.obs) + '</div>' : "") + '</div>'
             + '<button class="btn sm ' + (i === 2 ? "" : "pri") + '" data-com="' + a.id + '">' + (i === 0 ? "Iniciar" : i === 1 ? "Comanda" : "Ver") + '</button></div>';
@@ -1395,7 +1406,7 @@ ROUTES.banhotosa = function (v) {
     h += '<div class="sec-title"><h2>Últimos serviços</h2><div class="line"></div></div>'
       + tabela([{ t: "Data" }, { t: "Pet / Tutor" }, { t: "Serviço" }, { t: "Profissional" }, { t: "Valor", num: true }, { t: "" }],
         hist.map(a => '<tr><td style="white-space:nowrap">' + fmtD(a.data) + ' ' + esc(a.hora) + '</td>'
-          + '<td><b>' + esc(Q.nomePet(a.petId)) + '</b><div class="muted" style="font-size:12px">' + esc(Q.nomeCliente(a.clienteId)) + '</div></td>'
+          + '<td><b>' + esc(rotuloAg(a)) + '</b><div class="muted" style="font-size:12px">' + esc(Q.nomeCliente(a.clienteId)) + '</div></td>'
           + '<td>' + esc(a.tipo) + (a.obs ? '<div class="muted" style="font-size:12px">' + esc(a.obs) + '</div>' : "") + '</td>'
           + '<td>' + esc(a.profissional || "—") + '</td><td class="num">' + money(a.valor || 0) + '</td>'
           + '<td class="acts">' + statusPill(a.status) + ' <button class="btn sm" data-com="' + a.id + '">Abrir</button></td></tr>'),
@@ -1422,7 +1433,7 @@ function comandaBT(id) {
   const feitos = new Set(a.checklist || []);
   const body = '<div class="row" style="gap:12px;align-items:flex-start">'
     + '<span class="avatar" style="width:46px;height:46px;font-size:22px">' + (p ? (ICONE[p.especie] || "🐾") : "🐾") + '</span>'
-    + '<div><b style="font-size:17px;font-family:var(--display)">' + esc(Q.nomePet(a.petId)) + '</b>'
+    + '<div><b style="font-size:17px;font-family:var(--display)">' + esc(rotuloAg(a)) + '</b>'
     + '<div class="muted" style="font-size:13px">' + esc(p ? (p.raca || p.especie) + (p.porte ? " · porte " + p.porte : "") : "") + ' · tutor ' + esc(Q.nomeCliente(a.clienteId)) + '</div></div>'
     + '<div class="spacer"></div><div>' + statusPill(a.status) + '</div></div>'
     + (p && p.obs ? '<div class="alert warn" style="margin-top:10px"><span>⚠</span><div>' + esc(p.obs) + '</div></div>' : "")
@@ -1471,12 +1482,12 @@ function comandaBT(id) {
         if (a.valor > 0 && !DB.financeiro.some(l => l.ref === a.id)) {
           DB.financeiro.push({
             id: uid(), data: a.data, tipo: "Receita", categoria: "Banho e tosa",
-            descricao: a.tipo + " — " + Q.nomePet(a.petId), valor: a.valor,
+            descricao: a.tipo + " — " + rotuloAg(a), valor: a.valor,
             forma: a.forma || "Dinheiro", status: a.forma === "Fiado" ? "Pendente" : "Pago",
             clienteId: a.clienteId, ref: a.id
           });
         }
-        registrar("Banho e tosa finalizado", Q.nomePet(a.petId) + " · " + money(a.valor) + " · " + (a.forma || ""));
+        registrar("Banho e tosa finalizado", rotuloAg(a) + " · " + money(a.valor) + " · " + (a.forma || ""));
         save(); closeModal(); render(); toast("Serviço finalizado e lançado no caixa", "ok");
       };
     }
@@ -1753,7 +1764,7 @@ ROUTES.relatorios = function (v) {
   }
   const rec = meses.map(m => ({ l: MESES[+m.slice(5) - 1], v: DB.financeiro.filter(l => l.tipo === "Receita" && l.data.slice(0, 7) === m).reduce((s, l) => s + l.valor, 0) }));
   const des = meses.map(m => ({ l: MESES[+m.slice(5) - 1], v: DB.financeiro.filter(l => l.tipo === "Despesa" && l.data.slice(0, 7) === m).reduce((s, l) => s + l.valor, 0), cor: "var(--danger)" }));
-  const atend = meses.map(m => ({ l: MESES[+m.slice(5) - 1], v: DB.atendimentos.filter(a => a.data.slice(0, 7) === m).length, cor: "var(--accent)" }));
+  const atend = meses.map(m => ({ l: MESES[+m.slice(5) - 1], v: DB.atendimentos.filter(a => a.data.slice(0, 7) === m && ehAtendimento(a)).length, cor: "var(--accent)" }));
 
   const porCliente = {};
   DB.financeiro.filter(l => l.tipo === "Receita" && l.clienteId).forEach(l => porCliente[l.clienteId] = (porCliente[l.clienteId] || 0) + l.valor);
@@ -1847,7 +1858,7 @@ ROUTES.config = function (v) {
   h += '<div class="card"><h3>Importar cadastros</h3>'
     + '<div class="hint">Traga os tutores e pets de outro sistema (Vetsmart, SimplesVet, planilha do Excel) sem redigitar nada. '
     + 'O sistema reconhece as colunas sozinho e não duplica quem já está aqui.</div>'
-    + '<div class="row"><button class="btn pri" id="impcad">Importar planilha</button>'
+    + '<div class="row"><button class="btn pri" id="impcad">Importar planilha ou pacote</button>'
     + '<button class="btn" id="impmodelo">Ver modelo de planilha</button></div>'
     + '<div class="hint" style="margin-top:10px">Faça um backup antes, em “Copiar dados” — se o resultado não agradar, é só restaurar.</div></div>';
 
@@ -2956,6 +2967,12 @@ function importarCadastros() {
       $("#arqcsv", m).onchange = (e) => {
         const f = e.target.files[0]; if (!f) return;
         const r = new FileReader();
+        if (/\.json$/i.test(f.name)) {
+          /* pacote de migração completo (histórico, agenda, financeiro) */
+          r.onload = () => { closeModal(); importarPacoteTexto(r.result); };
+          r.readAsText(f, "utf-8");
+          return;
+        }
         r.onload = () => { $("#colado", m).value = r.result; toast("Arquivo carregado — confira e clique em Continuar", "ok"); };
         r.readAsText(f, "utf-8");
       };
@@ -2974,10 +2991,11 @@ function passoArquivo() {
   return '<div class="hint">Exporte a lista de clientes e pacientes do sistema antigo em planilha e salve como <b>CSV</b> '
     + '(no Excel: Arquivo → Salvar como → “CSV UTF-8 (delimitado por vírgulas)”). Depois escolha o arquivo aqui.</div>'
     + '<div class="formgrid">'
-    + '<div class="c12"><div class="field"><label for="arqcsv">Arquivo da planilha (.csv)</label><input type="file" id="arqcsv" accept=".csv,text/csv,text/plain"></div></div>'
+    + '<div class="c12"><div class="field"><label for="arqcsv">Planilha (.csv) ou pacote de migração (.json)</label><input type="file" id="arqcsv" accept=".csv,.json,text/csv,text/plain,application/json"></div></div>'
     + '<div class="c12"><div class="field"><label for="colado">…ou cole aqui o conteúdo (pode copiar direto do Excel)</label>'
     + '<textarea id="colado" class="codebox" style="width:100%;min-height:130px" placeholder="Tutor;Telefone;Pet;Especie;Raca;Nascimento&#10;Ana Paula;(11) 98123-4501;Thor;Canino;Golden;12/04/2022"></textarea></div></div>'
     + '</div>'
+    + '<div class="alert info" style="margin-top:10px"><span>📦</span><div><b>Pacote de migração (.json):</b> traz de uma vez cadastros, prontuário, receitas, vacinas, agenda futura, serviços e financeiro. Escolha o arquivo e o sistema mostra o que vai entrar antes de gravar.</div></div>'
     + '<div class="alert info" style="margin-top:10px"><span>💡</span><div>Funciona com uma linha por pet trazendo os dados do tutor junto, '
     + 'ou com uma planilha só de tutores e outra só de pets — nesse caso, importe uma de cada vez.</div></div>';
 }
@@ -3515,6 +3533,212 @@ function abrirAcesso() {
   if (SESSAO && DB.usuarios.some(u => u.id === SESSAO.usuarioId && u.ativo !== false)) { iniciarApp(); return; }
   $("#app").hidden = true;
   telaLogin();
+}
+</script>
+
+<script>
+/* ==================== PACOTE DE MIGRAÇÃO ====================
+   Recebe o pacote .json gerado a partir da exportação de outro
+   sistema e SOMA à base atual: tutores e pets são casados com os
+   que já existem; histórico, agenda, serviços e financeiro entram
+   uma vez só (cada registro guarda sua origem, então importar o
+   mesmo pacote de novo não duplica nada).
+   ============================================================ */
+function importarPacoteTexto(txt) {
+  let pk;
+  try { pk = JSON.parse(txt); } catch (e) { toast("O arquivo não é um pacote válido.", "err"); return; }
+  if (!pk || pk.formato !== "nuccivet-migracao") { toast("Este arquivo não é um pacote de migração do Nuccivet.", "err"); return; }
+
+  const jaTem = new Set();
+  ["atendimentos", "vacinas", "agenda", "servicos", "financeiro"].forEach(k => (DB[k] || []).forEach(r => { if (r.origem) jaTem.add(r.origem); }));
+  const novos = (k) => (pk[k] || []).filter(r => !jaTem.has(r.origem));
+  const nAt = novos("atendimentos"), nVac = novos("vacinas"), nAg = novos("agenda"),
+    nServ = novos("servicos").filter(s => !DB.servicos.some(x => slug(x.nome) === slug(s.nome))),
+    nFin = novos("financeiro");
+  const rec = nFin.filter(f => f.tipo === "Receita"), des = nFin.filter(f => f.tipo === "Despesa");
+  const soma = (l, st) => l.filter(f => !st || f.status === st).reduce((s, f) => s + (Number(f.valor) || 0), 0);
+  const vencidas = des.filter(f => f.status === "Pendente" && f.data < todayISO());
+  const porTipo = {};
+  nAt.forEach(a => porTipo[a.tipo] = (porTipo[a.tipo] || 0) + 1);
+  const agDatas = nAg.map(a => a.data).sort();
+  /* prévia de cadastros: quantos tutores e pets ainda não existem aqui */
+  const ix = {};
+  DB.clientes.forEach(c => {
+    if (digitos(c.cpf)) ix["cpf:" + digitos(c.cpf)] = c;
+    ix["n:" + slug(c.nome) + "|" + digitos(c.telefone).slice(-8)] = c;
+    if (!ix["n:" + slug(c.nome) + "|"]) ix["n:" + slug(c.nome) + "|"] = c;
+  });
+  const cliRef = {};
+  let tNovos = 0, pNovos = 0;
+  (pk.tutores || []).forEach(t => {
+    const c = (digitos(t.cpf) && ix["cpf:" + digitos(t.cpf)]) || ix["n:" + slug(t.nome) + "|" + digitos(t.telefone).slice(-8)] || ix["n:" + slug(t.nome) + "|"];
+    if (c) cliRef[t.ref] = c.id; else tNovos++;
+  });
+  (pk.pets || []).forEach(p => {
+    const cid = cliRef[p.tutorRef];
+    if (!cid || !DB.pets.some(q => q.clienteId === cid && slug(q.nome) === slug(p.nome))) pNovos++;
+  });
+
+  const item = (id, rotulo, detalhe, n, fixo) =>
+    '<label class="check" style="padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);align-items:flex-start;margin-bottom:8px">'
+    + '<input type="checkbox" id="pk_' + id + '"' + (n || fixo ? " checked" : "") + (fixo || !n ? " disabled" : "") + ' style="margin-top:3px">'
+    + '<span style="flex:1"><b>' + esc(rotulo) + '</b> <span class="pill ' + (n ? "brand" : "") + '">' + (n ? n + " novo(s)" : "nada novo") + '</span>'
+    + '<br><span class="muted" style="font-size:12.5px">' + detalhe + '</span></span></label>';
+
+  openModal({
+    title: "Importar pacote de migração · " + (pk.origem || "outro sistema"), size: "wide",
+    body: '<div class="hint">Gerado em ' + esc(pk.geradoEm || "—") + '. Nada do que já está no sistema é apagado — os dados do pacote são somados. '
+      + 'Importar o mesmo pacote de novo não duplica registros.</div>'
+      + item("cad", "Tutores e pets", "No pacote: " + (pk.tutores || []).length + " tutores e " + (pk.pets || []).length + " pets. "
+        + (tNovos || pNovos ? "Novos aqui: " + tNovos + " tutor(es) e " + pNovos + " pet(s). " : "Todos já estão cadastrados. ")
+        + "Quem já existe é reconhecido pelo CPF ou pelo nome e telefone e não duplica.", tNovos + pNovos, true)
+      + item("at", "Prontuário", Object.keys(porTipo).map(k => porTipo[k] + " " + k.toLowerCase()).join(" · ") || "—", nAt.length)
+      + item("vac", "Vacinas", "Aplicações registradas e próximas doses.", nVac.length)
+      + item("ag", "Agenda de hoje em diante", nAg.length ? ("De " + fmtD(agDatas[0]) + " até " + fmtD(agDatas[agDatas.length - 1]) + " · " + nAg.filter(a => !a.petRef).length + " compromisso(s) sem pet vinculado entram com a descrição original.") : "—", nAg.length)
+      + item("serv", "Tabela de serviços e preços", "Serviços com o mesmo nome de um que já existe são mantidos como estão.", nServ.length)
+      + item("fin", "Financeiro", rec.length + " recebimento(s): " + money(soma(rec, "Pago")) + " pagos e " + money(soma(rec, "Pendente")) + " a receber · "
+        + des.length + " despesa(s): " + money(soma(des)) + ".", nFin.length)
+      + (vencidas.length ? '<div class="alert warn" style="margin:4px 0 8px"><span>⚠</span><div><b>' + vencidas.length + ' despesa(s) vencida(s) constam como não pagas no sistema antigo</b> ('
+        + money(soma(vencidas)) + ' — ' + esc(Array.from(new Set(vencidas.map(f => f.descricao.replace(/ \(recorrente\)$/, "")))).slice(0, 3).join(", ")) + ').'
+        + '<label class="check" style="padding-top:6px"><input type="checkbox" id="pk_pagas"> Lançar essas despesas vencidas como pagas</label></div></div>' : ""),
+    footer: '<button class="btn" data-close>Cancelar</button><button class="btn pri" id="pkgo">Importar</button>',
+    onMount: (o) => {
+      $("#pkgo", o).onclick = () => {
+        const op = {
+          at: $("#pk_at", o).checked, vac: $("#pk_vac", o).checked, ag: $("#pk_ag", o).checked,
+          serv: $("#pk_serv", o).checked, fin: $("#pk_fin", o).checked,
+          pagas: !!($("#pk_pagas", o) && $("#pk_pagas", o).checked)
+        };
+        closeModal();
+        const r = aplicarPacote(pk, op);
+        openModal({
+          title: "Migração concluída", size: "narrow",
+          body: '<dl class="kv">'
+            + '<dt>Tutores novos</dt><dd>' + r.tutores + ' <span class="muted">(' + r.tutoresExist + ' já existiam)</span></dd>'
+            + '<dt>Pets novos</dt><dd>' + r.pets + ' <span class="muted">(' + r.petsExist + ' já existiam)</span></dd>'
+            + '<dt>Prontuário</dt><dd>' + r.at + ' registro(s)</dd>'
+            + '<dt>Vacinas</dt><dd>' + r.vac + '</dd>'
+            + '<dt>Agenda</dt><dd>' + r.ag + ' horário(s)</dd>'
+            + '<dt>Serviços</dt><dd>' + r.serv + '</dd>'
+            + '<dt>Financeiro</dt><dd>' + r.fin + ' lançamento(s)</dd></dl>'
+            + (r.semPet ? '<div class="hint" style="margin-top:10px">' + r.semPet + ' registro(s) ficaram de fora porque o animal não foi encontrado.</div>' : "")
+            + '<div class="hint" style="margin-top:10px">Os anexos continuam hospedados no sistema antigo — o botão “Abrir arquivo” no prontuário abre o original enquanto ele estiver disponível lá.</div>'
+        });
+      };
+    }
+  });
+}
+
+function aplicarPacote(pk, op) {
+  const r = { tutores: 0, tutoresExist: 0, pets: 0, petsExist: 0, at: 0, vac: 0, ag: 0, serv: 0, fin: 0, semPet: 0 };
+  const jaTem = new Set();
+  ["atendimentos", "vacinas", "agenda", "servicos", "financeiro"].forEach(k => (DB[k] || []).forEach(x => { if (x.origem) jaTem.add(x.origem); }));
+
+  /* ----- tutores ----- */
+  const idx = {};
+  const indexa = (c) => {
+    if (digitos(c.cpf)) idx["cpf:" + digitos(c.cpf)] = c;
+    idx["n:" + slug(c.nome) + "|" + digitos(c.telefone).slice(-8)] = c;
+    if (!idx["n:" + slug(c.nome) + "|"]) idx["n:" + slug(c.nome) + "|"] = c;
+  };
+  DB.clientes.forEach(indexa);
+  const tutorDe = {};
+  (pk.tutores || []).forEach(t => {
+    let c = (digitos(t.cpf) && idx["cpf:" + digitos(t.cpf)]) || idx["n:" + slug(t.nome) + "|" + digitos(t.telefone).slice(-8)] || idx["n:" + slug(t.nome) + "|"];
+    if (c) {
+      r.tutoresExist++;
+      ["telefone", "cpf", "email", "endereco", "bairro", "cidade"].forEach(k => { if (!c[k] && t[k]) c[k] = t[k]; });
+    } else {
+      c = { id: uid(), nome: t.nome, telefone: t.telefone, cpf: t.cpf, email: t.email, endereco: t.endereco,
+            bairro: t.bairro, cidade: t.cidade, obs: t.obs, criadoEm: todayISO() };
+      DB.clientes.push(c); indexa(c); r.tutores++;
+    }
+    tutorDe[t.ref] = c.id;
+  });
+
+  /* ----- pets ----- */
+  const petDe = {};
+  (pk.pets || []).forEach(p => {
+    const cid = tutorDe[p.tutorRef];
+    if (!cid) return;
+    let x = DB.pets.find(q => q.clienteId === cid && slug(q.nome) === slug(p.nome));
+    if (x) {
+      r.petsExist++;
+      ["raca", "sexo", "nascimento", "peso", "pelagem", "porte", "chip"].forEach(k => { if (!x[k] && p[k]) x[k] = p[k]; });
+    } else {
+      x = { id: uid(), clienteId: cid, nome: p.nome, especie: p.especie || "Cão", raca: p.raca, sexo: p.sexo,
+            nascimento: p.nascimento, peso: p.peso, pelagem: p.pelagem, porte: p.porte, castrado: !!p.castrado,
+            chip: p.chip, obs: p.obs, criadoEm: todayISO() };
+      DB.pets.push(x); r.pets++;
+    }
+    petDe[p.ref] = x;
+  });
+
+  (pk.profissionais || []).forEach(n => { if (n && DB.config.profissionais.indexOf(n) < 0) DB.config.profissionais.push(n); });
+
+  /* ----- prontuário ----- */
+  if (op.at) (pk.atendimentos || []).forEach(a => {
+    if (jaTem.has(a.origem)) return;
+    const pet = petDe[a.petRef];
+    if (!pet) { r.semPet++; return; }
+    DB.atendimentos.push({
+      id: uid(), petId: pet.id, clienteId: pet.clienteId, data: a.data, tipo: a.tipo,
+      anamnese: a.anamnese || "", exame: a.exame || "", diagnostico: a.diagnostico || "", prescricao: a.prescricao || "",
+      peso: a.peso || "", profissional: a.profissional || "", valor: 0, lancar: false, link: a.link || "", origem: a.origem
+    });
+    r.at++;
+  });
+
+  /* ----- vacinas ----- */
+  if (op.vac) (pk.vacinas || []).forEach(x => {
+    if (jaTem.has(x.origem)) return;
+    const pet = petDe[x.petRef];
+    if (!pet) { r.semPet++; return; }
+    DB.vacinas.push({ id: uid(), petId: pet.id, vacina: x.vacina, data: x.data, proxima: x.proxima || addMonths(x.data, 12),
+                      lote: x.lote || "", veterinario: x.veterinario || "", obs: x.obs || "", origem: x.origem });
+    r.vac++;
+  });
+
+  /* ----- agenda ----- */
+  if (op.ag) (pk.agenda || []).forEach(a => {
+    if (jaTem.has(a.origem)) return;
+    const pet = a.petRef ? petDe[a.petRef] : null;
+    if (a.petRef && !pet) { r.semPet++; return; }
+    DB.agenda.push({
+      id: uid(), petId: pet ? pet.id : "", clienteId: pet ? pet.clienteId : "", titulo: a.titulo || "",
+      data: a.data, hora: a.hora, tipo: TIPOS_AG.indexOf(a.tipo) >= 0 ? a.tipo : "Consulta", status: a.status || "Agendado",
+      profissional: a.profissional || "", valor: Number(a.valor) || 0, levaTraz: !!a.levaTraz, obs: a.obs || "",
+      servicoIds: [], checklist: [], origem: a.origem
+    });
+    r.ag++;
+  });
+
+  /* ----- serviços ----- */
+  if (op.serv) (pk.servicos || []).forEach(s => {
+    if (jaTem.has(s.origem) || DB.servicos.some(x => slug(x.nome) === slug(s.nome))) return;
+    DB.servicos.push({ id: uid(), nome: s.nome, categoria: CATS_SERV.indexOf(s.categoria) >= 0 ? s.categoria : "Procedimentos",
+                       preco: Number(s.preco) || 0, duracao: Number(s.duracao) || 0, obs: s.obs || "", origem: s.origem });
+    r.serv++;
+  });
+
+  /* ----- financeiro ----- */
+  if (op.fin) (pk.financeiro || []).forEach(f => {
+    if (jaTem.has(f.origem)) return;
+    let status = f.status || "Pago";
+    if (op.pagas && f.tipo === "Despesa" && status === "Pendente" && f.data < todayISO()) status = "Pago";
+    DB.financeiro.push({
+      id: uid(), data: f.data, tipo: f.tipo, categoria: f.categoria, descricao: f.descricao, valor: Number(f.valor) || 0,
+      forma: FORMAS.indexOf(f.forma) >= 0 ? f.forma : "Outros", status, clienteId: f.tutorRef ? (tutorDe[f.tutorRef] || "") : "",
+      origem: f.origem
+    });
+    r.fin++;
+  });
+
+  registrar("Migração importada (" + (pk.origem || "pacote") + ")",
+    r.tutores + " tutores, " + r.pets + " pets, " + r.at + " registros de prontuário, " + r.ag + " agendamentos, " + r.fin + " lançamentos");
+  save(); render();
+  toast("Migração concluída", "ok");
+  return r;
 }
 </script>
 
