@@ -254,6 +254,12 @@ td.acts{text-align:right;white-space:nowrap}
 .sheet{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r);padding:11px 13px}
 .codebox{background:var(--surface-3);border:1px solid var(--line);border-radius:var(--r-sm);padding:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;white-space:pre-wrap;word-break:break-word;max-height:220px;overflow:auto}
 
+/* ---------- aviso de novidades ---------- */
+#novidades{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:150;display:flex;align-items:center;gap:10px;
+  background:var(--surface);color:var(--ink);border:1px solid var(--line-strong);border-left:4px solid var(--info);border-radius:12px;box-shadow:var(--shadow-lg);
+  padding:9px 10px 9px 14px;font-size:14px;max-width:calc(100vw - 32px);flex-wrap:wrap}
+#novidades .x{margin-left:0}
+@media (max-width:620px){#novidades{left:12px;right:12px;transform:none;max-width:none}#novidades span{flex:1 1 100%}}
 /* ---------- orçamentos ---------- */
 .orcitens{width:100%;border-collapse:collapse}
 .orcitens th{font-size:11px;letter-spacing:.7px;text-transform:uppercase;color:var(--ink-3);text-align:left;padding:8px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
@@ -420,6 +426,7 @@ const CATS_SERV = ["Consultas e exames", "Vacinas", "Farmácia", "Cirurgias", "P
 /* ---------- base de dados ---------- */
 const KEY = "nuccivet_db_v1";
 const CLOUDKEY = "nuccivet_cloud_v1";
+const BASEKEY = "nuccivet_base_v1";
 let DB = null;
 
 function emptyDB() {
@@ -458,19 +465,79 @@ function loadDB() {
 function persist() {
   try { localStorage.setItem(KEY, JSON.stringify(DB)); } catch (e) { console.warn("localStorage indisponível", e); }
 }
+/* identificador deste navegador (não vai para a nuvem como dado compartilhado) */
+const APARELHO = (() => {
+  let d = null;
+  try { d = localStorage.getItem("nuccivet_aparelho_v1"); } catch (e) { }
+  if (!d) { d = uid(); try { localStorage.setItem("nuccivet_aparelho_v1", d); } catch (e) { } }
+  return d;
+})();
 function save(silent) {
   DB.meta.updatedAt = new Date().toISOString();
+  DB.meta.editor = APARELHO;
   persist();
   Cloud.schedulePush();
   if (!silent) renderNav();
 }
 
+/* ---------- mesclagem registro a registro ----------
+   Compara três versões: a última que os dois lados tinham em comum (base),
+   a deste aparelho e a da nuvem. O que só um lado mudou entra sem conflito;
+   se os dois mexeram no mesmo registro, vale a alteração mais recente. */
+const _J = (x) => x === undefined ? undefined : JSON.stringify(x);
+function ehColecao(x) { return Array.isArray(x) && x.length > 0 && x.every(i => i && typeof i === "object" && i.id); }
+function mesclarColecao(b, l, r, localMaisNovo) {
+  const mapa = (arr) => { const m = new Map(); (arr || []).forEach(x => { if (x && x.id) m.set(x.id, x); }); return m; };
+  const B = mapa(b), L = mapa(l), R = mapa(r);
+  let mudou = false;
+  const decide = (id) => {
+    const bx = B.get(id), lx = L.get(id), rx = R.get(id);
+    const sb = _J(bx), sl = _J(lx), sr = _J(rx);
+    if (sr === sl || sr === sb) return lx;           /* nada novo vindo da nuvem */
+    let usarRemoto;
+    if (sl === sb) usarRemoto = true;                /* só a nuvem mudou */
+    else if (!lx) usarRemoto = true;                 /* apagado aqui, alterado lá: mantém o alterado */
+    else if (!rx) usarRemoto = false;                /* apagado lá, alterado aqui: mantém o daqui */
+    else usarRemoto = !localMaisNovo;                /* os dois mudaram: vale o mais recente */
+    if (!usarRemoto) return lx;
+    mudou = true;
+    if (!rx) return undefined;
+    if (lx) { Object.keys(lx).forEach(k => delete lx[k]); Object.assign(lx, rx); return lx; } /* mantém a mesma referência */
+    return rx;
+  };
+  const out = [];
+  (l || []).forEach(x => { if (!x || !x.id) { out.push(x); return; } const v = decide(x.id); if (v) out.push(v); });
+  (r || []).forEach(x => { if (x && x.id && !L.has(x.id)) { const v = decide(x.id); if (v) out.push(v); } });
+  return { lista: out, mudou };
+}
+function mesclarBase(alvo, base, remoto) {
+  let mudou = false;
+  const localMaisNovo = String((alvo.meta || {}).updatedAt || "") > String((remoto.meta || {}).updatedAt || "");
+  const troca = (sb, sl, sr) => sr !== sb && sr !== sl && (sl === sb || !localMaisNovo);
+  new Set(Object.keys(alvo).concat(Object.keys(remoto))).forEach(k => {
+    if (k === "meta") return;
+    const b = base[k], l = alvo[k], r = remoto[k];
+    if (ehColecao(l) || ehColecao(r) || ehColecao(b)) {
+      const res = mesclarColecao(b, l, r, localMaisNovo);
+      if (res.mudou) { alvo[k] = res.lista; mudou = true; }
+    } else if (k === "config" && l && r && typeof l === "object" && typeof r === "object") {
+      new Set(Object.keys(l).concat(Object.keys(r))).forEach(c => {
+        if (troca(_J((b || {})[c]), _J(l[c]), _J(r[c]))) { if (r[c] === undefined) delete l[c]; else l[c] = r[c]; mudou = true; }
+      });
+    } else if (troca(_J(b), _J(l), _J(r))) {
+      if (r === undefined) delete alvo[k]; else alvo[k] = r;
+      mudou = true;
+    }
+  });
+  return mudou;
+}
+
 /* ---------- sincronização opcional (Supabase / PostgREST) ---------- */
 const Cloud = {
-  cfg: null, timer: null, poll: null, busy: false, state: "off", msg: "Dados neste dispositivo",
+  cfg: null, timer: null, poll: null, busy: false, again: false, state: "off", msg: "Dados neste dispositivo", pendente: false,
   load() { try { this.cfg = JSON.parse(localStorage.getItem(CLOUDKEY) || "null"); } catch (e) { this.cfg = null; } },
   saveCfg(cfg) { this.cfg = cfg; try { localStorage.setItem(CLOUDKEY, JSON.stringify(cfg)); } catch (e) { } },
-  clear() { this.cfg = null; try { localStorage.removeItem(CLOUDKEY); } catch (e) { } this.setState("off", "Dados neste dispositivo"); },
+  clear() { this.cfg = null; this.baseStr = null; try { localStorage.removeItem(CLOUDKEY); localStorage.removeItem(BASEKEY); } catch (e) { } clearInterval(this.poll); this.setState("off", "Dados neste dispositivo"); },
   active() { return !!(this.cfg && this.cfg.url && this.cfg.key); },
   setState(s, m) { this.state = s; this.msg = m; const d = $("#syncdot"), t = $("#syncmsg"); if (d) d.className = "dot " + (s === "on" ? "" : s === "err" ? "err" : "off"); if (t) t.textContent = m; },
   headers() { return { apikey: this.cfg.key, Authorization: "Bearer " + this.cfg.key, "Content-Type": "application/json" }; },
@@ -479,43 +546,126 @@ const Cloud = {
     const base = String(this.cfg.url || "").trim().replace(/\/+$/, "").replace(/\/rest\/v1$/i, "");
     return base + "/rest/v1/" + (this.cfg.tabela || "nuccivet");
   },
+  registro() { return this.cfg.registro || "principal"; },
+  /* última versão que este aparelho e a nuvem tinham em comum */
+  lerBase() {
+    if (this.baseStr === undefined || this.baseStr === null) { try { this.baseStr = localStorage.getItem(BASEKEY); } catch (e) { this.baseStr = null; } }
+    if (!this.baseStr) return null;
+    try { const b = JSON.parse(this.baseStr); return b && b.dados && b.dados.meta && b.registro === this.registro() ? b.dados : null; } catch (e) { return null; }
+  },
+  gravarBase(db) {
+    this.baseStr = JSON.stringify({ registro: this.registro(), dados: db });
+    try { localStorage.setItem(BASEKEY, this.baseStr); } catch (e) { /* sem espaço: fica só na memória */ }
+  },
   async pull() {
     if (!this.active()) return null;
-    const r = await fetch(this.endpoint() + "?id=eq." + encodeURIComponent(this.cfg.registro || "principal") + "&select=payload,updated_at", { headers: this.headers() });
+    const r = await fetch(this.endpoint() + "?id=eq." + encodeURIComponent(this.registro()) + "&select=payload,updated_at", { headers: this.headers() });
     if (!r.ok) throw new Error("HTTP " + r.status + " — verifique a URL, a chave e a tabela.");
     const rows = await r.json();
     return rows && rows[0] ? rows[0] : null;
   },
-  async push() {
+  /* consulta leve: só a versão da nuvem, sem baixar a base inteira */
+  async cabecalho() {
+    try {
+      const r = await fetch(this.endpoint() + "?id=eq." + encodeURIComponent(this.registro()) + "&select=updated_at,meta:payload->meta", { headers: this.headers() });
+      if (r.ok) {
+        const rows = await r.json();
+        if (!rows || !rows[0]) return { existe: false };
+        const m = rows[0].meta || {};
+        return { existe: true, rev: m.rev == null ? null : String(m.rev), stamp: m.updatedAt || null };
+      }
+      if (r.status === 401 || r.status === 403 || r.status === 404) throw new Error("HTTP " + r.status);
+    } catch (e) { if (/HTTP 40[134]/.test(e.message)) throw e; }
+    const row = await this.pull();   /* servidor sem suporte ao filtro: baixa tudo */
+    if (!row || !row.payload) return { existe: false };
+    const m = row.payload.meta || {};
+    return { existe: true, rev: m.rev == null ? null : String(m.rev), stamp: m.updatedAt || null, row };
+  },
+  /* grava só se ninguém gravou desde a última leitura (evita apagar o que outro aparelho mandou) */
+  async enviar(cab) {
+    const corpo = { id: this.registro(), payload: DB, updated_at: new Date().toISOString() };
+    if (!cab.existe) {
+      const r = await fetch(this.endpoint(), { method: "POST", headers: Object.assign(this.headers(), { Prefer: "return=minimal" }), body: JSON.stringify([corpo]) });
+      if (r.status === 409) return false;
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return true;
+    }
+    const filtro = cab.rev == null ? "payload->meta->>rev=is.null" : "payload->meta->>rev=eq." + encodeURIComponent(cab.rev);
+    const r = await fetch(this.endpoint() + "?id=eq." + encodeURIComponent(this.registro()) + "&" + filtro + "&select=id", {
+      method: "PATCH", headers: Object.assign(this.headers(), { Prefer: "return=representation" }),
+      body: JSON.stringify({ payload: DB, updated_at: corpo.updated_at })
+    });
+    if (r.ok) { const rows = await r.json().catch(() => [1]); return Array.isArray(rows) ? rows.length > 0 : true; }
+    if (r.status === 400) { await this.push(true); return true; }   /* filtro não suportado: grava direto */
+    throw new Error("HTTP " + r.status);
+  },
+  /* envio forçado: este aparelho passa a ser a versão da nuvem */
+  async push(semCabecalho) {
     if (!this.active()) return;
-    const body = [{ id: this.cfg.registro || "principal", payload: DB, updated_at: new Date().toISOString() }];
+    if (!semCabecalho) { const cab = await this.cabecalho(); DB.meta.rev = (Number(cab.rev) || 0) + 1; persist(); }
+    const body = [{ id: this.registro(), payload: DB, updated_at: new Date().toISOString() }];
     const r = await fetch(this.endpoint(), {
       method: "POST",
       headers: Object.assign(this.headers(), { Prefer: "resolution=merge-duplicates,return=minimal" }),
       body: JSON.stringify(body)
     });
     if (!r.ok) throw new Error("HTTP " + r.status);
+    this.gravarBase(DB);
   },
   schedulePush() {
     if (!this.active()) return;
     clearTimeout(this.timer);
     this.setState("on", "Salvando na nuvem…");
-    this.timer = setTimeout(async () => {
-      try { await this.push(); this.setState("on", "Sincronizado " + nowHM()); }
-      catch (e) { this.setState("err", "Falha ao sincronizar"); }
-    }, 1200);
+    this.timer = setTimeout(() => this.sync(), 1200);
+  },
+  /* busca novidades, mescla registro a registro e envia o que for daqui */
+  async sync() {
+    if (!this.active()) return;
+    if (this.busy) { this.again = true; return; }
+    this.busy = true; this.again = false;
+    let telaMudou = false;
+    try {
+      for (let tentativa = 0; tentativa < 5; tentativa++) {
+        const base = this.lerBase();
+        const baseStamp = base && base.meta ? base.meta.updatedAt : null;
+        const localMudou = !base || DB.meta.updatedAt !== baseStamp;
+        const carimbo = DB.meta.updatedAt;
+        const cab = await this.cabecalho();
+        if (cab.existe && (!base || cab.stamp !== baseStamp)) {
+          const row = cab.row || await this.pull();
+          const remoto = row && row.payload;
+          if (remoto && remoto.clientes) {
+            if (mesclarBase(DB, base || { meta: {} }, remoto)) telaMudou = true;
+            /* se alguém salvou aqui enquanto baixava, o envio agendado por esse save leva a alteração */
+            const salvouNoMeio = DB.meta.updatedAt !== carimbo;
+            if (!localMudou && !salvouNoMeio) { DB.meta.updatedAt = remoto.meta.updatedAt; DB.meta.editor = remoto.meta.editor; DB.meta.rev = remoto.meta.rev; }
+            else if (DB.meta.updatedAt <= (remoto.meta.updatedAt || "")) DB.meta.updatedAt = new Date().toISOString();
+            persist();
+            this.gravarBase(remoto);   /* agora o ponto comum é a versão da nuvem */
+            if (!localMudou) break;
+          }
+        }
+        if (!localMudou && cab.existe) break;
+        DB.meta.rev = (Number(cab.rev) || 0) + 1;
+        DB.meta.editor = APARELHO;
+        persist();
+        if (await this.enviar(cab)) { this.gravarBase(DB); break; }
+        /* outro aparelho gravou no meio do caminho: busca de novo e mescla */
+      }
+      this.setState("on", "Sincronizado " + nowHM());
+    } catch (e) {
+      this.setState("err", navigator.onLine === false ? "Sem internet — salvo neste aparelho" : "Falha ao sincronizar");
+    } finally {
+      this.busy = false;
+      if (telaMudou) avisarNovidades();
+      if (this.again) { this.again = false; this.schedulePush(); }
+    }
   },
   async start() {
     this.load();
     if (!this.active()) { this.setState("off", "Dados neste dispositivo"); return; }
     this.setState("on", "Conectando…");
-    try {
-      const row = await this.pull();
-      if (row && row.payload && new Date(row.updated_at) > new Date(DB.meta.updatedAt)) {
-        DB = row.payload; persist(); render();
-        this.setState("on", "Atualizado da nuvem");
-      } else { await this.push(); this.setState("on", "Sincronizado " + nowHM()); }
-    } catch (e) { this.setState("err", "Sem conexão com a nuvem"); }
+    await this.sync();
     clearInterval(this.poll);
     this.poll = setInterval(() => this.check(), 30000);
   },
@@ -525,18 +675,47 @@ const Cloud = {
       + ((db.financeiro || []).length) + " lançamentos";
   },
   quando(iso) { try { return new Date(iso).toLocaleString("pt-BR"); } catch (e) { return "—"; } },
-  async check() {
-    if (!this.active() || document.hidden || $("#overlay")) return;
-    try {
-      const row = await this.pull();
-      if (row && row.payload && new Date(row.updated_at) > new Date(DB.meta.updatedAt)) {
-        DB = row.payload; persist(); render();
-        toast("Dados atualizados por outro dispositivo");
-      }
-      this.setState("on", "Sincronizado " + nowHM());
-    } catch (e) { this.setState("err", "Sem conexão com a nuvem"); }
+  check() {
+    if (!this.active() || document.hidden) return;
+    this.sync();
   }
 };
+
+/* ---------- novidades de outro aparelho ----------
+   Nunca redesenha a tela no meio de um cadastro: só atualiza sozinho
+   em telas de consulta; nas demais mostra um aviso discreto. */
+const ROTAS_AUTO = ["painel", "agenda", "internacao", "banhotosa"];
+let editorSujo = null;   /* telas de edição informam se há alterações não salvas */
+function telaOcupada() {
+  if ($("#overlay") || $("#trava")) return true;
+  const partes = (location.hash.replace("#/", "") || "painel").split("/");
+  if (ROTAS_AUTO.indexOf(partes[0]) < 0 || partes.length > 1) return true;
+  const a = document.activeElement;
+  return !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
+}
+function renderSuave() {
+  const v = $("#view"), y = v ? v.scrollTop : 0;
+  render();
+  if (v) v.scrollTop = y;
+}
+function avisarNovidades() {
+  renderNav();
+  if (!telaOcupada()) { renderSuave(); return; }
+  if ($("#novidades")) return;
+  const el = document.createElement("div");
+  el.id = "novidades";
+  el.setAttribute("role", "status");
+  el.innerHTML = '<span>Há alterações feitas em outro aparelho.</span><button class="btn sm" id="novver">Mostrar agora</button><button class="x" id="novx" aria-label="Dispensar">&times;</button>';
+  document.body.appendChild(el);
+  $("#novx", el).onclick = () => el.remove();
+  $("#novver", el).onclick = () => {
+    if (editorSujo && editorSujo()) {
+      confirmar("Você tem alterações não salvas nesta tela. Salve antes, ou elas serão perdidas ao atualizar.", () => { el.remove(); renderSuave(); }, "Atualizar mesmo assim");
+      return;
+    }
+    el.remove(); renderSuave();
+  };
+}
 
 /* ---------- consultas ---------- */
 const Q = {
@@ -714,6 +893,8 @@ function render() {
     renderNav();
     return;
   }
+  editorSujo = null;
+  const nv = $("#novidades"); if (nv) nv.remove();
   const fn = ROUTES[parts[0]] || ROUTES.painel;
   fn(v, parts.slice(1));
   renderNav();
@@ -2035,6 +2216,7 @@ async function conectarNuvem(cfg) {
       await Cloud.push();
       Cloud.setState("on", "Sincronizado " + nowHM());
       toast("Nuvem criada com os dados deste aparelho", "ok");
+      Cloud.start();
     } catch (e) { Cloud.setState("err", "Falha ao enviar"); toast("Conectou, mas não consegui gravar: " + e.message, "err"); }
     render();
     return;
@@ -2054,7 +2236,7 @@ async function conectarNuvem(cfg) {
       + '<button class="btn pri" id="baixar">Usar a base da nuvem</button>',
     onMount: (o) => {
       $("#baixar", o).onclick = () => {
-        DB = remoto; persist(); closeModal(); render();
+        DB = remoto; persist(); Cloud.gravarBase(DB); closeModal(); render();
         Cloud.setState("on", "Atualizado da nuvem");
         toast("Dados da nuvem carregados neste aparelho", "ok");
         Cloud.start();
@@ -2065,6 +2247,7 @@ async function conectarNuvem(cfg) {
           try { await Cloud.push(); Cloud.setState("on", "Sincronizado " + nowHM()); toast("Nuvem atualizada com este aparelho", "ok"); }
           catch (e) { Cloud.setState("err", "Falha ao enviar"); toast("Não consegui enviar: " + e.message, "err"); }
           render();
+          Cloud.start();
         }, "Enviar");
       };
     }
@@ -2076,7 +2259,7 @@ async function baixarDaNuvem() {
   catch (e) { toast("Não consegui ler a nuvem: " + e.message, "err"); return; }
   if (!row || !row.payload) { toast("Ainda não há dados na nuvem.", "err"); return; }
   confirmar("Substituir os dados deste aparelho pela base da nuvem (" + Cloud.resumo(row.payload) + ")?", () => {
-    DB = row.payload; persist(); render();
+    DB = row.payload; persist(); Cloud.gravarBase(DB); render();
     Cloud.setState("on", "Atualizado da nuvem");
     toast("Dados da nuvem carregados", "ok");
   }, "Baixar");
@@ -4085,6 +4268,7 @@ function editorOrc(v, id) {
   const ed = $("#oed", v);
   if (travado) $$("input,select,textarea", ed).forEach(el => { if (!el.classList.contains("livre")) el.disabled = true; });
   const marca = () => { sujo = true; };
+  editorSujo = () => sujo;
 
   /* ----- totais ----- */
   const atualizaTot = () => {
