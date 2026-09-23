@@ -254,6 +254,40 @@ td.acts{text-align:right;white-space:nowrap}
 .sheet{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r);padding:11px 13px}
 .codebox{background:var(--surface-3);border:1px solid var(--line);border-radius:var(--r-sm);padding:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;white-space:pre-wrap;word-break:break-word;max-height:220px;overflow:auto}
 
+/* ---------- orçamentos ---------- */
+.orcitens{width:100%;border-collapse:collapse}
+.orcitens th{font-size:11px;letter-spacing:.7px;text-transform:uppercase;color:var(--ink-3);text-align:left;padding:8px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.orcitens td{padding:7px 8px;border-bottom:1px dashed var(--line);vertical-align:top}
+.orcitens th.num,.orcitens td.num{text-align:right}
+.orcitens input{width:100%;padding:6px 8px;border:1px solid var(--line-strong);border-radius:var(--r-sm);background:var(--surface-2);font:inherit;color:inherit}
+.orcitens input:focus{background:var(--surface);border-color:var(--brand);outline:0}
+.orcitens input.q{width:64px;text-align:right}
+.orcitens input.vu{width:104px;text-align:right}
+.orcitens input.ob{margin-top:4px;font-size:12.5px;padding:4px 8px}
+.orcitens .cat{font-size:11.5px;color:var(--ink-3);margin-top:3px}
+.orcitens .tt{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;padding-top:13px}
+.orcitens tr.grp td{background:var(--surface-3);font-size:11.5px;letter-spacing:.8px;text-transform:uppercase;font-weight:700;color:var(--brand);padding:6px 8px}
+.catbusca{position:relative}
+.catbusca .results{left:0;right:auto;width:min(460px,100%)}
+.catbusca .results .p{float:right;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.orctot{display:grid;grid-template-columns:1fr auto;gap:6px 14px;font-size:14px;font-variant-numeric:tabular-nums}
+.orctot dt{color:var(--ink-2)}.orctot dd{margin:0;text-align:right;font-weight:600}
+.orctot .big{grid-column:1/-1;display:flex;justify-content:space-between;align-items:baseline;background:var(--brand);color:var(--brand-ink);border-radius:var(--r);padding:12px 14px;margin-top:6px}
+.orctot .big span{font-size:12px;letter-spacing:1px;text-transform:uppercase;font-weight:700}
+.orctot .big b{font-family:var(--display);font-size:26px;line-height:1}
+.desconto{display:flex;gap:6px;width:170px;margin-left:auto}
+.desconto input,.desconto select{padding:7px 9px;border:1px solid var(--line-strong);border-radius:var(--r-sm);background:var(--surface-2);color:inherit;font:inherit;font-weight:400}
+.desconto input{flex:1;min-width:0;text-align:right}
+.desconto select{width:62px;flex:none}
+.desconto input:focus,.desconto select:focus{background:var(--surface);border-color:var(--brand);outline:0}
+.orcitens td:first-child{width:100%}
+.dash.orced{grid-template-columns:minmax(0,1.85fr) minmax(0,1fr)}
+@media (max-width:1100px){.dash.orced{grid-template-columns:1fr}}
+.prazos .chip{padding:2px 8px;font-size:12px}
+.prazos{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.bloqueado .orcitens input,.bloqueado .field input,.bloqueado .field select,.bloqueado .field textarea:not(.livre){pointer-events:none;background:transparent;border-color:transparent;resize:none}
+.bloqueado .prazos,.bloqueado .catbusca,.bloqueado [data-rm]{display:none}
+@media (max-width:620px){.orcitens input.vu{width:84px}.orcitens input.q{width:52px}}
 @media (max-width:900px){
   #app{grid-template-columns:1fr}
   #nav{position:fixed;inset:0 auto 0 0;width:250px;transform:translateX(-100%);transition:transform .2s;padding-top:env(safe-area-inset-top,0px)}
@@ -396,11 +430,14 @@ function emptyDB() {
       responsavel: "", crmv: "", registroMapa: "MV00810602025", abertura: "08:00", fechamento: "19:00",
       profissionais: ["Dr(a). Responsável", "Auxiliar", "Tosador(a)"],
       boxes: ["Box 1", "Box 2", "Box 3", "Box 4", "Isolamento", "Felinos 1", "Felinos 2"],
-      diariaPadrao: 180
+      diariaPadrao: 180,
+      validadeOrc: 15, seqOrc: 0,
+      condicoesOrc: "Pagamento à vista em dinheiro, Pix ou cartão de débito, ou no cartão de crédito. Consulte as condições de parcelamento com a recepção.",
+      termosOrc: "Os valores referem-se somente aos itens listados e valem até a data indicada. Durante o atendimento pode ser necessário realizar exames, medicações ou procedimentos adicionais; nesse caso, o tutor é avisado antes e os itens extras são cobrados à parte. Em cirurgias, a realização depende da avaliação clínica e dos exames pré-operatórios."
     },
     clientes: [], pets: [], agenda: [], atendimentos: [], vacinas: [],
     produtos: [], movimentos: [], financeiro: [], internacoes: [],
-    servicos: [], usuarios: [], log: [], recuperacao: null
+    servicos: [], orcamentos: [], usuarios: [], log: [], recuperacao: null
   };
 }
 function loadDB() {
@@ -630,6 +667,7 @@ const NAV = [
   { r: "painel", t: "Painel", ic: "◆" },
   { r: "agenda", t: "Agenda", ic: "▦", cnt: () => Q.agendaDe(todayISO()).filter(a => a.status !== "Cancelado").length },
   { r: "atendimentos", t: "Atendimentos", ic: "✚" },
+  { r: "orcamentos", t: "Orçamentos", ic: "🧾", cnt: () => orcAguardando().length || "" },
   { r: "internacao", t: "Internação", ic: "🛏", cnt: () => Q.internados().length || "" },
   { r: "banhotosa", t: "Banho & Tosa", ic: "✂" },
   { r: "vacinas", t: "Vacinas", ic: "💉" },
@@ -695,6 +733,10 @@ function buscaGlobal(termo) {
   DB.pets.forEach(p => {
     if ((p.nome + " " + (p.raca || "")).toLowerCase().includes(t))
       out.push({ t: (ICONE[p.especie] || "🐾") + " " + p.nome, d: (p.raca || p.especie) + " · " + Q.nomeCliente(p.clienteId), go: "pets/" + p.id });
+  });
+  (DB.orcamentos || []).forEach(o => {
+    if ((numeroOrc(o) + " " + (o.titulo || "")).toLowerCase().includes(t))
+      out.push({ t: "🧾 " + numeroOrc(o), d: "Orçamento · " + Q.nomeCliente(o.clienteId) + " · " + money(totaisOrc(o).total), go: "orcamentos/" + o.id });
   });
   return out.slice(0, 12);
 }
@@ -868,6 +910,15 @@ ROUTES.painel = function (v) {
   baixo.slice(0, 5).forEach(p => {
     alertas += '<div class="alert warn"><span>📦</span><div><b>' + esc(p.nome) + '</b> — estoque ' + p.estoque + ' ' + esc(p.unidade) + ' (mínimo ' + p.minimo + ')</div></div>';
   });
+  if (pode("orcamentos")) {
+    const oa = orcAguardando();
+    if (oa.length) {
+      const ov = oa.filter(o => o.validade && diffDays(todayISO(), o.validade) <= 3).length;
+      alertas += '<div class="alert info"><span>🧾</span><div style="flex:1"><b>' + oa.length + ' orçamento(s) aguardando resposta</b><br><span class="muted">'
+        + money(oa.reduce((s, o) => s + totaisOrc(o).total, 0)) + ' em negociação' + (ov ? ' · ' + ov + ' vence(m) em até 3 dias' : '') + '</span></div>'
+        + '<button class="btn sm" id="veorc">Ver</button></div>';
+    }
+  }
   if (pendentes.length && podeVerDinheiro()) alertas += '<div class="alert info"><span>💰</span><div><b>' + pendentes.length + ' lançamento(s) pendente(s)</b><br><span class="muted">' + money(pendentes.reduce((s, l) => s + (l.tipo === "Receita" ? l.valor : 0), 0)) + ' a receber</span></div></div>';
   h += alertas || '<div class="empty" style="padding:18px"><span class="big">✅</span>Tudo em dia por aqui.</div>';
   h += '</div>';
@@ -890,6 +941,7 @@ ROUTES.painel = function (v) {
   h += '</div></div>';
 
   v.innerHTML = h;
+  { const vo = $("#veorc", v); if (vo) vo.onclick = () => go("orcamentos"); }
   const b1 = $("#verag", v); if (b1) b1.onclick = () => go("agenda");
   const b2 = $("#novoag", v); if (b2) b2.onclick = () => formAgendamento(null, { data: hoje });
   $$("[data-ag]", v).forEach(b => b.onclick = () => abrirAgendamento(b.dataset.ag));
@@ -965,7 +1017,7 @@ function fichaCliente(v, id) {
   const aberto = lanc.filter(l => l.status === "Pendente" && l.tipo === "Receita").reduce((s, l) => s + l.valor, 0);
   let h = '<div class="row noprint" style="margin-bottom:14px"><button class="btn" id="volta">‹ Tutores</button><div class="spacer"></div>'
     + '<button class="btn ok" id="wpp">WhatsApp</button>'
-    + '<button class="btn" id="edit">Editar</button><button class="btn" id="npet">+ Pet</button><button class="btn pri" id="nag">+ Agendar</button></div>';
+    + '<button class="btn" id="edit">Editar</button><button class="btn" id="npet">+ Pet</button><button class="btn" id="norc">+ Orçamento</button><button class="btn pri" id="nag">+ Agendar</button></div>';
   h += '<div class="dash" style="margin-top:0">';
   h += '<div class="grid">';
   h += '<div class="card"><h3>Pets</h3><div class="hint">' + pets.length + ' animal(is) sob cuidado.</div>'
@@ -989,12 +1041,19 @@ function fichaCliente(v, id) {
     + (lanc.length ? lanc.slice(0, 10).map(l => '<div class="agitem"><div class="gr"><b>' + esc(l.descricao) + '</b><div class="muted" style="font-size:12.5px">' + fmtD(l.data) + ' · ' + esc(l.forma || "—") + '</div></div>'
       + '<span class="mono" style="color:' + (l.tipo === "Receita" ? "var(--ok)" : "var(--danger)") + '">' + money(l.valor) + '</span></div>').join("")
       : '<div class="muted">Nenhum lançamento.</div>') + '</div>';
+  const orcs = orcDoCliente(id);
+  if (orcs.length) h += '<div class="card"><h3>Orçamentos</h3>'
+    + orcs.slice(0, 8).map(o => '<div class="agitem"><div class="gr"><b>' + esc(o.titulo || resumoItens(o)) + '</b>'
+      + '<div class="muted" style="font-size:12.5px">' + numeroOrc(o) + ' · ' + (o.petId ? esc(Q.nomePet(o.petId)) + ' · ' : '') + fmtD(o.data) + '</div></div>'
+      + '<span class="mono">' + money(totaisOrc(o).total) + '</span>' + pillOrc(o) + '<button class="btn sm" data-orc="' + o.id + '">Abrir</button></div>').join("") + '</div>';
   h += '</div></div>';
   v.innerHTML = h;
   $("#volta", v).onclick = () => go("clientes");
   $("#wpp", v).onclick = () => whatsLivre(id, (pets[0] || {}).id);
   $("#edit", v).onclick = () => formCliente(id);
   $("#npet", v).onclick = () => formPet(null, { clienteId: id });
+  $("#norc", v).onclick = () => novoOrcamento({ clienteId: id, petId: pets.length === 1 ? pets[0].id : "" });
+  $$("[data-orc]", v).forEach(b => b.onclick = () => go("orcamentos/" + b.dataset.orc));
   $("#nag", v).onclick = () => formAgendamento(null, { clienteId: id, petId: (pets[0] || {}).id });
   $$("[data-p]", v).forEach(b => b.onclick = () => go("pets/" + b.dataset.p));
 }
@@ -1075,7 +1134,7 @@ function fichaPet(v, id) {
   const bt = DB.agenda.filter(a => a.petId === id && isBT(a.tipo)).sort((a, b) => b.data.localeCompare(a.data));
   let h = '<div class="row noprint" style="margin-bottom:14px"><button class="btn" id="volta">‹ Pets</button><div class="spacer"></div>'
     + '<button class="btn" id="edit">Editar</button><button class="btn" id="nvac">+ Vacina</button>'
-    + '<button class="btn" id="nag">+ Agendar</button><button class="btn" id="nint">+ Internar</button>'
+    + '<button class="btn" id="nag">+ Agendar</button><button class="btn" id="norc">+ Orçamento</button><button class="btn" id="nint">+ Internar</button>'
     + '<button class="btn pri" id="natend">+ Atendimento</button>'
     + '<button class="btn" id="imprimir">Imprimir ficha</button></div>';
   h += '<div class="dash" style="margin-top:0"><div class="grid">';
@@ -1104,6 +1163,11 @@ function fichaPet(v, id) {
       + '<div class="muted" style="font-size:12.5px">' + fmtD(a.data) + ' · ' + esc(a.profissional || "—") + (a.obs ? " · " + esc(a.obs) : "") + '</div></div>'
       + '<span class="mono">' + money(a.valor || 0) + '</span>' + statusPill(a.status) + '</div>').join("")
       : '<div class="muted">Nenhum serviço de banho e tosa.</div>') + '</div>';
+  const orcs = orcDoPet(id);
+  if (orcs.length) h += '<div class="card"><h3>Orçamentos</h3>'
+    + orcs.slice(0, 8).map(o => '<div class="agitem"><span class="avatar">🧾</span><div class="gr"><b>' + esc(o.titulo || resumoItens(o)) + '</b>'
+      + '<div class="muted" style="font-size:12.5px">' + numeroOrc(o) + ' · ' + fmtD(o.data) + ' · ' + money(totaisOrc(o).total) + '</div></div>'
+      + pillOrc(o) + '<button class="btn sm" data-orc="' + o.id + '">Abrir</button></div>').join("") + '</div>';
   const ints = Q.internacaoDoPet(id);
   if (ints.length) h += '<div class="card"><h3>Internações</h3>'
     + ints.map(x => '<div class="agitem"><span class="avatar">🛏️</span><div class="gr"><b>' + esc(x.motivo || "Internação") + '</b>'
@@ -1131,6 +1195,8 @@ function fichaPet(v, id) {
   $("#nvac", v).onclick = () => formVacina(null, { petId: id });
   $("#nag", v).onclick = () => formAgendamento(null, { petId: id, clienteId: p.clienteId });
   $("#nint", v).onclick = () => formInternacao(null, { petId: id, clienteId: p.clienteId });
+  $("#norc", v).onclick = () => novoOrcamento({ petId: id, clienteId: p.clienteId });
+  $$("[data-orc]", v).forEach(b => b.onclick = () => go("orcamentos/" + b.dataset.orc));
   $("#natend", v).onclick = () => formAtendimento(null, { petId: id, clienteId: p.clienteId });
   $$("[data-i]", v).forEach(b => b.onclick = () => go("internacao/" + b.dataset.i));
   $("#imprimir", v).onclick = () => window.print();
@@ -1825,6 +1891,14 @@ ROUTES.config = function (v) {
     + '<div class="c4"><div class="field"><label for="cdia">Diária de internação (R$)</label><input id="cdia" type="number" step="0.01" value="' + (c.diariaPadrao || 0) + '"><span style="font-size:11.5px;color:var(--ink-3)">Valor sugerido ao internar um paciente.</span></div></div>'
     + '</div><div class="row" style="margin-top:12px"><button class="btn pri" id="salvarcfg">Salvar dados</button></div></div>';
 
+  h += '<div class="card"><h3>Orçamentos</h3><div class="hint">Textos que já vêm preenchidos em todo orçamento novo e saem no papel timbrado.</div>'
+    + '<div class="formgrid">'
+    + '<div class="c4"><div class="field"><label for="cfgoval">Validade padrão (dias)</label><input id="cfgoval" type="number" min="1" step="1" value="' + (Number(c.validadeOrc) || 15) + '"></div></div>'
+    + '<div class="c12"><div class="field"><label for="cfgocond">Condições de pagamento</label><textarea id="cfgocond">' + esc(c.condicoesOrc || "") + '</textarea></div></div>'
+    + '<div class="c12"><div class="field"><label for="cfgoterm">Informações importantes (rodapé do orçamento)</label><textarea id="cfgoterm" style="min-height:96px">' + esc(c.termosOrc || "") + '</textarea>'
+    + '<span style="font-size:11.5px;color:var(--ink-3)">Deixe em branco para não imprimir esse parágrafo.</span></div></div>'
+    + '</div><div class="row" style="margin-top:12px"><button class="btn pri" id="salvarorc">Salvar</button></div></div>';
+
   h += '<div class="card"><h3>Sincronização em nuvem (opcional)</h3>'
     + '<div class="hint">Sem isso, os dados ficam apenas neste navegador. Com uma conta gratuita no Supabase, a recepção e você passam a ver a mesma base em qualquer aparelho — e funciona igual se o sistema estiver hospedado em outro lugar.</div>'
     + '<div class="formgrid">'
@@ -1871,7 +1945,7 @@ ROUTES.config = function (v) {
   h += '<div class="card"><h3>Mensagens do WhatsApp</h3>'
     + '<div class="hint">Textos que aparecem prontos quando você clica em “WhatsApp” pelo sistema. '
     + 'Use as marcações entre chaves — elas são trocadas pelos dados reais na hora do envio.</div>'
-    + '<div class="row" style="margin-bottom:10px">' + ["{tutor}", "{pet}", "{clinica}", "{data}", "{hora}", "{tipo}", "{valor}", "{vacina}", "{prescricao}", "{retorno}", "{evolucao}", "{resumo}", "{descricao}"].map(t => '<span class="pill brand">' + esc(t) + '</span>').join("") + '</div>'
+    + '<div class="row" style="margin-bottom:10px">' + ["{tutor}", "{pet}", "{clinica}", "{data}", "{hora}", "{tipo}", "{valor}", "{vacina}", "{prescricao}", "{retorno}", "{evolucao}", "{resumo}", "{descricao}", "{numero}", "{itens}", "{validade}", "{condicoes}"].map(t => '<span class="pill brand">' + esc(t) + '</span>').join("") + '</div>'
     + Object.keys(MSG_PADRAO).map(k => '<div class="field" style="margin-bottom:10px"><label for="m_' + k + '">' + esc(MSG_ROTULOS[k]) + '</label>'
       + '<textarea id="m_' + k + '" style="min-height:' + (k === "livre" ? 54 : 92) + 'px">' + esc(tplMsg(k)) + '</textarea></div>').join("")
     + '<div class="row"><button class="btn pri" id="salvarmsg">Salvar mensagens</button><button class="btn" id="resetmsg">Voltar ao texto padrão</button></div>'
@@ -1901,6 +1975,11 @@ ROUTES.config = function (v) {
     c.boxes = $("#cbox", v).value.split("\n").map(s => s.trim()).filter(Boolean);
     c.diariaPadrao = parseFloat($("#cdia", v).value) || 0;
     save(); toast("Dados da clínica salvos", "ok");
+  };
+  $("#salvarorc", v).onclick = () => {
+    c.validadeOrc = Math.max(1, parseInt($("#cfgoval", v).value, 10) || 15);
+    c.condicoesOrc = $("#cfgocond", v).value.trim(); c.termosOrc = $("#cfgoterm", v).value.trim();
+    save(); toast("Padrões do orçamento salvos", "ok");
   };
   $("#salvarmsg", v).onclick = () => {
     c.msgs = c.msgs || {};
@@ -2510,12 +2589,13 @@ const MSG_PADRAO = {
   internacao: "Oi, {tutor}! Atualização do(a) {pet}, que está internado(a) na {clinica}:\n\n{evolucao}\n\nQualquer novidade eu aviso por aqui.",
   alta: "Oi, {tutor}! Boa notícia: o(a) {pet} recebeu alta hoje. 🎉\n\n{resumo}\n\nPode buscar aqui na {clinica}. Qualquer dúvida estou à disposição.",
   aberto: "Oi, {tutor}! Passando para lembrar do valor em aberto de {valor} aqui na {clinica} ({descricao}).\n\nPosso enviar o Pix?",
+  orcamento: "Olá, {tutor}! Aqui é da {clinica}.\n\nSegue o orçamento {numero} para o(a) {pet}:\n\n{itens}\n\n*Total: {valor}*\nVálido até {validade}.\n\n{condicoes}\n\nO orçamento completo em PDF vai em anexo. Para aprovar, é só responder por aqui. 🐾",
   livre: "Oi, {tutor}! Aqui é da {clinica}. "
 };
 const MSG_ROTULOS = {
   receita: "Receita / prescrição", agenda: "Confirmação de agendamento", pronto: "Banho e tosa pronto",
   vacina: "Lembrete de vacina", internacao: "Atualização de internação", alta: "Alta da internação",
-  aberto: "Valor em aberto", livre: "Mensagem livre"
+  aberto: "Valor em aberto", orcamento: "Envio de orçamento", livre: "Mensagem livre"
 };
 function tplMsg(k) { return ((DB.config.msgs || {})[k]) || MSG_PADRAO[k] || ""; }
 function preencher(txt, vars) {
@@ -3192,8 +3272,8 @@ function modeloPlanilha() {
 const PERFIS = ["Administrador", "Veterinário", "Recepção"];
 const PERMISSOES = {
   "Administrador": "*",
-  "Veterinário": ["painel", "agenda", "atendimentos", "internacao", "banhotosa", "vacinas", "clientes", "pets", "servicos", "estoque"],
-  "Recepção": ["painel", "agenda", "banhotosa", "vacinas", "clientes", "pets", "servicos", "estoque", "financeiro"]
+  "Veterinário": ["painel", "agenda", "atendimentos", "orcamentos", "internacao", "banhotosa", "vacinas", "clientes", "pets", "servicos", "estoque"],
+  "Recepção": ["painel", "agenda", "orcamentos", "banhotosa", "vacinas", "clientes", "pets", "servicos", "estoque", "financeiro"]
 };
 const SESSKEY = "nuccivet_sessao_v1";
 let SESSAO = null;
@@ -3552,11 +3632,13 @@ function importarPacoteTexto(txt) {
   if (!pk || pk.formato !== "nuccivet-migracao") { toast("Este arquivo não é um pacote de migração do Nuccivet.", "err"); return; }
 
   const jaTem = new Set();
-  ["atendimentos", "vacinas", "agenda", "servicos", "financeiro"].forEach(k => (DB[k] || []).forEach(r => { if (r.origem) jaTem.add(r.origem); }));
+  ["atendimentos", "vacinas", "agenda", "servicos", "financeiro", "orcamentos"].forEach(k => (DB[k] || []).forEach(r => { if (r.origem) jaTem.add(r.origem); }));
   const novos = (k) => (pk[k] || []).filter(r => !jaTem.has(r.origem));
   const nAt = novos("atendimentos"), nVac = novos("vacinas"), nAg = novos("agenda"),
     nServ = novos("servicos").filter(s => !DB.servicos.some(x => slug(x.nome) === slug(s.nome))),
-    nFin = novos("financeiro");
+    nFin = novos("financeiro"), nOrc = novos("orcamentos");
+  const orcAprov = nOrc.filter(x => x.status === "Aprovado").length;
+  const orcDatas = nOrc.map(x => x.data).sort();
   const rec = nFin.filter(f => f.tipo === "Receita"), des = nFin.filter(f => f.tipo === "Despesa");
   const soma = (l, st) => l.filter(f => !st || f.status === st).reduce((s, f) => s + (Number(f.valor) || 0), 0);
   const vencidas = des.filter(f => f.status === "Pendente" && f.data < todayISO());
@@ -3598,6 +3680,8 @@ function importarPacoteTexto(txt) {
       + item("vac", "Vacinas", "Aplicações registradas e próximas doses.", nVac.length)
       + item("ag", "Agenda de hoje em diante", nAg.length ? ("De " + fmtD(agDatas[0]) + " até " + fmtD(agDatas[agDatas.length - 1]) + " · " + nAg.filter(a => !a.petRef).length + " compromisso(s) sem pet vinculado entram com a descrição original.") : "—", nAg.length)
       + item("serv", "Tabela de serviços e preços", "Serviços com o mesmo nome de um que já existe são mantidos como estão.", nServ.length)
+      + item("orc", "Orçamentos", nOrc.length ? (orcAprov + " aprovado(s), que viraram venda · " + (nOrc.length - orcAprov) + " sem resposta registrada · de "
+        + fmtD(orcDatas[0]) + " até " + fmtD(orcDatas[orcDatas.length - 1]) + ". Entram só como histórico — não geram lançamentos no caixa, porque as vendas já vêm no financeiro.") : "—", nOrc.length)
       + item("fin", "Financeiro", rec.length + " recebimento(s): " + money(soma(rec, "Pago")) + " pagos e " + money(soma(rec, "Pendente")) + " a receber · "
         + des.length + " despesa(s): " + money(soma(des)) + ".", nFin.length)
       + (vencidas.length ? '<div class="alert warn" style="margin:4px 0 8px"><span>⚠</span><div><b>' + vencidas.length + ' despesa(s) vencida(s) constam como não pagas no sistema antigo</b> ('
@@ -3608,7 +3692,7 @@ function importarPacoteTexto(txt) {
       $("#pkgo", o).onclick = () => {
         const op = {
           at: $("#pk_at", o).checked, vac: $("#pk_vac", o).checked, ag: $("#pk_ag", o).checked,
-          serv: $("#pk_serv", o).checked, fin: $("#pk_fin", o).checked,
+          serv: $("#pk_serv", o).checked, fin: $("#pk_fin", o).checked, orc: $("#pk_orc", o).checked,
           pagas: !!($("#pk_pagas", o) && $("#pk_pagas", o).checked)
         };
         closeModal();
@@ -3622,7 +3706,8 @@ function importarPacoteTexto(txt) {
             + '<dt>Vacinas</dt><dd>' + r.vac + '</dd>'
             + '<dt>Agenda</dt><dd>' + r.ag + ' horário(s)</dd>'
             + '<dt>Serviços</dt><dd>' + r.serv + '</dd>'
-            + '<dt>Financeiro</dt><dd>' + r.fin + ' lançamento(s)</dd></dl>'
+            + '<dt>Financeiro</dt><dd>' + r.fin + ' lançamento(s)</dd>'
+            + '<dt>Orçamentos</dt><dd>' + r.orc + '</dd></dl>'
             + (r.semPet ? '<div class="hint" style="margin-top:10px">' + r.semPet + ' registro(s) ficaram de fora porque o animal não foi encontrado.</div>' : "")
             + '<div class="hint" style="margin-top:10px">Os anexos continuam hospedados no sistema antigo — o botão “Abrir arquivo” no prontuário abre o original enquanto ele estiver disponível lá.</div>'
         });
@@ -3632,9 +3717,9 @@ function importarPacoteTexto(txt) {
 }
 
 function aplicarPacote(pk, op) {
-  const r = { tutores: 0, tutoresExist: 0, pets: 0, petsExist: 0, at: 0, vac: 0, ag: 0, serv: 0, fin: 0, semPet: 0 };
+  const r = { tutores: 0, tutoresExist: 0, pets: 0, petsExist: 0, at: 0, vac: 0, ag: 0, serv: 0, fin: 0, orc: 0, semPet: 0 };
   const jaTem = new Set();
-  ["atendimentos", "vacinas", "agenda", "servicos", "financeiro"].forEach(k => (DB[k] || []).forEach(x => { if (x.origem) jaTem.add(x.origem); }));
+  ["atendimentos", "vacinas", "agenda", "servicos", "financeiro", "orcamentos"].forEach(k => (DB[k] || []).forEach(x => { if (x.origem) jaTem.add(x.origem); }));
 
   /* ----- tutores ----- */
   const idx = {};
@@ -3736,11 +3821,777 @@ function aplicarPacote(pk, op) {
     r.fin++;
   });
 
+  /* ----- orçamentos (histórico) ----- */
+  if (op.orc) (pk.orcamentos || []).slice().sort((a, b) => String(a.data).localeCompare(String(b.data))).forEach(x => {
+    if (jaTem.has(x.origem)) return;
+    const pet = petDe[x.petRef];
+    if (!pet) { r.semPet++; return; }
+    DB.orcamentos.push({
+      id: uid(), numero: proximoNumeroOrc(), data: x.data, validade: x.validade || addDays(x.data, 15),
+      clienteId: pet.clienteId, petId: pet.id, profissional: x.profissional || "", titulo: x.titulo || "",
+      itens: (x.itens || []).map(i => {
+        const s = DB.servicos.find(y => slug(y.nome) === slug(i.descricao));
+        return { id: uid(), tipo: s ? "servico" : "livre", refId: s ? s.id : "", descricao: s ? s.nome : i.descricao, obs: i.obs || "",
+                 qtd: Number(i.qtd) || 1, valor: Number(i.valor) || 0, categoria: s ? s.categoria : (i.categoria || "Outros itens") };
+      }),
+      desconto: Number(x.desconto) || 0, descontoTipo: "R$", condicoes: "", obs: x.obs || "", notas: "",
+      status: x.status === "Aprovado" ? "Aprovado" : "Aberto", aprovadoEm: x.aprovadoEm || "",
+      criadoEm: x.data + "T00:00", criadoPor: x.profissional || "", origem: x.origem
+    });
+    r.orc++;
+  });
+
   registrar("Migração importada (" + (pk.origem || "pacote") + ")",
-    r.tutores + " tutores, " + r.pets + " pets, " + r.at + " registros de prontuário, " + r.ag + " agendamentos, " + r.fin + " lançamentos");
+    r.tutores + " tutores, " + r.pets + " pets, " + r.at + " registros de prontuário, " + r.ag + " agendamentos, " + r.fin + " lançamentos, " + r.orc + " orçamentos");
   save(); render();
   toast("Migração concluída", "ok");
   return r;
+}
+</script>
+
+<script>
+/* ======================== ORÇAMENTOS ========================
+   Proposta de valores para o tutor aprovar antes do procedimento.
+   Fluxo: montar (serviços, produtos ou itens livres) → enviar em
+   papel timbrado / WhatsApp → aprovado ou recusado. Ao aprovar,
+   o sistema lança no caixa, baixa o estoque e agenda, se pedido.
+   =========================================================== */
+const MOTIVOS_RECUSA = ["Valor acima do esperado", "Vai pensar / sem retorno", "Fez em outro lugar", "Pet melhorou", "Óbito", "Outro"];
+const CAT_FIN = {
+  "Consultas e exames": "Serviços clínicos", "Vacinas": "Vacinas", "Farmácia": "Farmácia", "Cirurgias": "Cirurgias",
+  "Procedimentos": "Serviços clínicos", "Banho e tosa": "Banho e tosa", "Medicamentos e materiais": "Venda de produtos"
+};
+const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+const semAcento = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const fmtQtd = (q) => { const n = Number(q) || 0; return n % 1 ? n.toLocaleString("pt-BR", { maximumFractionDigits: 2 }) : String(n); };
+
+function numeroOrc(o) { return "ORC-" + String(o.data || todayISO()).slice(0, 4) + "-" + String(o.numero || 0).padStart(4, "0"); }
+function proximoNumeroOrc() {
+  const maior = (DB.orcamentos || []).reduce((m, o) => Math.max(m, Number(o.numero) || 0), 0);
+  DB.config.seqOrc = Math.max(Number(DB.config.seqOrc) || 0, maior) + 1;
+  return DB.config.seqOrc;
+}
+function totaisOrc(o) {
+  const sub = (o.itens || []).reduce((s, it) => s + (Number(it.qtd) || 0) * (Number(it.valor) || 0), 0);
+  let desc = Number(o.desconto) || 0;
+  if (o.descontoTipo === "%") desc = sub * Math.min(desc, 100) / 100;
+  desc = Math.min(Math.max(desc, 0), sub);
+  return { sub: r2(sub), desc: r2(desc), total: r2(sub - desc) };
+}
+function situacaoOrc(o) {
+  if (o.status === "Aberto") return (o.validade && o.validade < todayISO()) ? "Vencido" : "Aguardando";
+  return o.status;
+}
+function pillOrc(o) {
+  const s = situacaoOrc(o);
+  return '<span class="pill ' + ({ Aguardando: "info", Vencido: "warn", Aprovado: "ok", Recusado: "dang" }[s] || "") + '">' + esc(s) + '</span>';
+}
+function catItem(it) { return it.categoria || (it.tipo === "produto" ? "Medicamentos e materiais" : "Outros itens"); }
+function resumoItens(o, n) {
+  const corta = (s) => s.length > 42 ? s.slice(0, 40).trim() + "…" : s;
+  const nomes = (o.itens || []).map(i => corta(String(i.descricao || "").trim())).filter(Boolean);
+  n = n || 2;
+  return nomes.slice(0, n).join(", ") + (nomes.length > n ? " +" + (nomes.length - n) : "");
+}
+function orcDoPet(pid) { return (DB.orcamentos || []).filter(o => o.petId === pid).sort((a, b) => b.data.localeCompare(a.data)); }
+function orcDoCliente(cid) { return (DB.orcamentos || []).filter(o => o.clienteId === cid).sort((a, b) => b.data.localeCompare(a.data)); }
+function orcAguardando() { return (DB.orcamentos || []).filter(o => situacaoOrc(o) === "Aguardando"); }
+function categoriaFinOrc(o) {
+  const peso = {};
+  (o.itens || []).forEach(it => { const c = CAT_FIN[catItem(it)] || "Serviços clínicos"; peso[c] = (peso[c] || 0) + (Number(it.qtd) || 0) * (Number(it.valor) || 0); });
+  return Object.keys(peso).sort((a, b) => peso[b] - peso[a])[0] || "Serviços clínicos";
+}
+function sugerirTipoAg(o) {
+  const cats = (o.itens || []).map(catItem), nomes = semAcento((o.itens || []).map(i => i.descricao).join(" ") + " " + (o.titulo || ""));
+  if (/internac|diaria/.test(nomes)) return "Internação";
+  if (cats.indexOf("Cirurgias") >= 0 || /cirurg|castra|tartarec|nodulo/.test(nomes)) return "Cirurgia";
+  if (cats.every(c => c === "Banho e tosa")) return "Banho e tosa";
+  if (cats.indexOf("Vacinas") >= 0) return "Vacina";
+  if (/ultrass|raio|hemog|perfil|exame|urinal|bioquim/.test(nomes)) return "Exame";
+  if (cats.indexOf("Consultas e exames") >= 0) return "Consulta";
+  return "";
+}
+function cidadeClinica() {
+  const m = String(DB.config.endereco || "").match(/([A-Za-zÀ-ÿ'. ]{3,})\s*[\/\-–]\s*[A-Z]{2}\b/);
+  return m ? m[1].trim() : "";
+}
+/* abre o editor já preenchido (usado a partir da ficha do pet ou do tutor) */
+let ORC_NOVO = null;
+function novoOrcamento(def) {
+  ORC_NOVO = def || {};
+  if (location.hash === "#/orcamentos/novo") render(); else go("orcamentos/novo");
+}
+
+/* ------------------------- LISTA ------------------------- */
+ROUTES.orcamentos = function (v, args) {
+  if (args[0]) return editorOrc(v, args[0] === "novo" ? null : args[0]);
+  const aguard = orcAguardando();
+  setTitle("Orçamentos", aguard.length + " aguardando resposta do tutor");
+  const hoje = todayISO(), mes = hoje.slice(0, 7);
+  const soma = (l) => l.reduce((s, o) => s + totaisOrc(o).total, 0);
+  const aprovMes = DB.orcamentos.filter(o => o.status === "Aprovado" && String(o.aprovadoEm || "").slice(0, 7) === mes);
+  const decididos = DB.orcamentos.filter(o => o.data >= addDays(hoje, -90) && situacaoOrc(o) !== "Aguardando");
+  const taxa = decididos.length ? Math.round(decididos.filter(o => o.status === "Aprovado").length / decididos.length * 100) : null;
+  const vencendo = aguard.filter(o => o.validade && diffDays(hoje, o.validade) <= 3);
+  const cont = (f) => f === "Todos" ? DB.orcamentos.length : DB.orcamentos.filter(o => situacaoOrc(o) === f).length;
+  const ROT = { Aguardando: "Aguardando", Aprovado: "Aprovados", Recusado: "Recusados", Vencido: "Vencidos", Todos: "Todos" };
+  let filtro = "Aguardando", termo = "";
+
+  v.innerHTML = '<div class="kpis">'
+    + kpi("Aguardando resposta", aguard.length, money(soma(aguard)) + " em negociação", aguard.length ? "w" : "")
+    + kpi("Aprovados no mês", aprovMes.length, money(soma(aprovMes)), "g")
+    + kpi("Taxa de aprovação", taxa === null ? "—" : taxa + "%", "orçamentos dos últimos 90 dias", "")
+    + kpi("Vencem em até 3 dias", vencendo.length, vencendo.length ? "bom momento para falar com o tutor" : "nenhum no limite", vencendo.length ? "d" : "g")
+    + '</div><div style="height:14px"></div>'
+    + barra(inputBusca("Buscar por tutor, pet, número ou item…")
+      + '<div class="row">' + Object.keys(ROT).map(f => '<button class="chip' + (f === filtro ? " on" : "") + '" data-f="' + f + '">' + ROT[f]
+        + ' <span style="opacity:.7">' + cont(f) + '</span></button>').join("") + '</div>'
+      + '<div class="spacer"></div><button class="btn pri" id="novo">+ Novo orçamento</button>')
+    + '<div id="lista"></div>';
+
+  const draw = () => {
+    let l = DB.orcamentos.slice();
+    if (filtro !== "Todos") l = l.filter(o => situacaoOrc(o) === filtro);
+    if (termo) {
+      const t = semAcento(termo);
+      l = l.filter(o => semAcento([numeroOrc(o), Q.nomeCliente(o.clienteId), o.petId ? Q.nomePet(o.petId) : "", o.titulo, (o.itens || []).map(i => i.descricao).join(" ")].join(" ")).includes(t));
+    }
+    l.sort((a, b) => (b.data + String(b.numero).padStart(6, "0")).localeCompare(a.data + String(a.numero).padStart(6, "0")));
+    $("#lista", v).innerHTML = tabela(
+      [{ t: "Nº / emissão" }, { t: "Tutor e pet" }, { t: "Referente a" }, { t: "Validade" }, { t: "Total", num: true }, { t: "Situação" }, { t: "" }],
+      l.slice(0, 300).map(o => {
+        const p = Q.pet(o.petId), d = o.validade ? diffDays(hoje, o.validade) : 99, sit = situacaoOrc(o);
+        return '<tr><td style="white-space:nowrap"><button class="linkish mono" data-o="' + o.id + '">' + numeroOrc(o) + '</button>'
+          + '<div class="muted" style="font-size:12px">' + fmtD(o.data) + '</div></td>'
+          + '<td style="min-width:150px"><b>' + esc(Q.nomeCliente(o.clienteId)) + '</b>' + (p ? '<div class="muted" style="font-size:12px">' + (ICONE[p.especie] || "🐾") + " " + esc(p.nome) + '</div>' : "") + '</td>'
+          + '<td style="min-width:230px">' + esc(o.titulo || resumoItens(o)) + (o.titulo ? '<div class="muted" style="font-size:12px">' + esc(resumoItens(o)) + '</div>' : "") + '</td>'
+          + '<td style="white-space:nowrap">' + fmtD(o.validade) + (sit === "Aguardando" && d <= 3 ? ' <span class="pill warn">' + (d === 0 ? "hoje" : "em " + d + "d") + '</span>' : "") + '</td>'
+          + '<td class="num mono">' + money(totaisOrc(o).total) + '</td><td>' + pillOrc(o) + '</td>'
+          + '<td class="acts"><button class="btn sm" data-pdf="' + o.id + '">PDF</button> '
+          + '<button class="btn sm" data-w="' + o.id + '">WhatsApp</button></td></tr>';
+      }), filtro === "Aguardando" ? "Nenhum orçamento aguardando resposta." : "Nenhum orçamento encontrado.");
+    $$("[data-o]", v).forEach(b => b.onclick = () => go("orcamentos/" + b.dataset.o));
+    $$("[data-pdf]", v).forEach(b => b.onclick = () => imprimirOrcamento(DB.orcamentos.find(o => o.id === b.dataset.pdf)));
+    $$("[data-w]", v).forEach(b => b.onclick = () => whatsOrcamento(DB.orcamentos.find(o => o.id === b.dataset.w)));
+  };
+  $("#q", v).oninput = e => { termo = e.target.value; draw(); };
+  $$("[data-f]", v).forEach(b => b.onclick = () => { filtro = b.dataset.f; $$("[data-f]", v).forEach(x => x.classList.toggle("on", x === b)); draw(); });
+  $("#novo", v).onclick = () => novoOrcamento({});
+  draw();
+};
+
+/* ------------------------- EDITOR ------------------------- */
+function editorOrc(v, id) {
+  const orig = id ? DB.orcamentos.find(o => o.id === id) : null;
+  if (id && !orig) { setTitle("Orçamento"); v.innerHTML = '<div class="card"><div class="empty">Orçamento não encontrado.</div></div>'; return; }
+  const cfg = DB.config;
+  const def = ORC_NOVO || {};
+  ORC_NOVO = null;
+  const profPadrao = (perfilAtual() === "Veterinário" && nomeUsuario()) || cfg.responsavel || selProf()[0] || "";
+  const o = orig ? JSON.parse(JSON.stringify(orig)) : Object.assign({
+    id: "", numero: 0, data: todayISO(), validade: addDays(todayISO(), Number(cfg.validadeOrc) || 15),
+    clienteId: "", petId: "", profissional: profPadrao, titulo: "", itens: [], desconto: 0, descontoTipo: "R$",
+    condicoes: cfg.condicoesOrc || "", obs: "", notas: "", status: "Aberto"
+  }, def);
+  if (o.petId && !o.clienteId) o.clienteId = (Q.pet(o.petId) || {}).clienteId || "";
+  o.itens = o.itens || [];
+  const travado = o.status === "Aprovado";
+  const sit = orig ? situacaoOrc(orig) : "Novo";
+  let sujo = false;
+
+  setTitle(orig ? "Orçamento " + numeroOrc(orig) : "Novo orçamento",
+    orig ? (Q.nomeCliente(o.clienteId) + (o.petId ? " · " + Q.nomePet(o.petId) : "")) : "Monte a proposta e envie ao tutor");
+
+  const profs = selProf().slice();
+  if (o.profissional && profs.indexOf(o.profissional) < 0) profs.unshift(o.profissional);
+  const opt = (lista, val, vazio) => (vazio ? '<option value="">' + esc(vazio) + '</option>' : "")
+    + lista.map(x => { const ov = x.v !== undefined ? x.v : x, ot = x.t !== undefined ? x.t : x; return '<option value="' + esc(ov) + '"' + (String(ov) === String(val) ? " selected" : "") + '>' + esc(ot) + '</option>'; }).join("");
+  const campo = (col, idc, rot, input, dica) => '<div class="' + col + '"><div class="field"><label for="' + idc + '">' + rot + '</label>' + input
+    + (dica ? '<span style="font-size:11.5px;color:var(--ink-3)">' + dica + '</span>' : "") + '</div></div>';
+
+  /* barra de ações */
+  let h = '<div class="row noprint" style="margin-bottom:14px"><button class="btn" id="volta">‹ Orçamentos</button>'
+    + (orig ? pillOrc(orig) : '<span class="pill brand">Novo</span>') + '<div class="spacer"></div>'
+    + '<button class="btn" id="pdf">PDF / imprimir</button><button class="btn ok" id="wpp">WhatsApp</button>'
+    + (orig ? '<button class="btn" id="dup">Duplicar</button>' : "")
+    + (orig && orig.status === "Aberto" ? (sit === "Vencido" ? '<button class="btn" id="renovar">Renovar prazo</button>' : "")
+      + '<button class="btn dang" id="recusar">Recusado</button><button class="btn ok" id="aprovar">Aprovado ✓</button>' : "")
+    + (orig && orig.status === "Recusado" ? '<button class="btn" id="renovar">Reabrir</button>' : "")
+    + '<button class="btn pri" id="salvar">' + (travado ? "Salvar anotações" : "Salvar") + '</button></div>';
+
+  /* faixa de situação */
+  if (orig && orig.status === "Aprovado") {
+    const fins = DB.financeiro.filter(l => l.ref === orig.id);
+    const ag = orig.agendaId ? DB.agenda.find(a => a.id === orig.agendaId) : null;
+    h += '<div class="alert" style="border-left-color:var(--ok);background:var(--ok-weak)"><span>✓</span><div><b>Aprovado em ' + fmtD(orig.aprovadoEm) + '</b>'
+      + (orig.aprovadoPor ? " por " + esc(orig.aprovadoPor) : "") + (orig.comoAprovou ? " — " + esc(orig.comoAprovou) : "") + '.'
+      + (fins.length ? ' Lançado no caixa: ' + fins.map(l => money(l.valor) + " " + (l.status === "Pago" ? "recebido" : "a receber")).join(" + ") + '.' : "")
+      + (ag ? ' Agendado para ' + fmtD(ag.data) + ' às ' + esc(ag.hora) + ' (' + esc(ag.tipo) + ').' : "")
+      + (orig.origem ? ' Importado do sistema anterior.' : "")
+      + '<br><span class="muted">Para mudar itens ou valores, duplique o orçamento e envie a nova versão.</span></div></div>';
+  } else if (orig && orig.status === "Recusado") {
+    h += '<div class="alert dang"><span>✕</span><div><b>Recusado em ' + fmtD(orig.recusadoEm) + '</b>'
+      + (orig.motivoRecusa ? " — " + esc(orig.motivoRecusa) : "") + (orig.detalheRecusa ? ": " + esc(orig.detalheRecusa) : "") + '</div></div>';
+  } else if (sit === "Vencido") {
+    h += '<div class="alert warn"><span>⏱</span><div><b>A validade terminou em ' + fmtD(orig.validade) + '.</b> '
+      + 'Confira os valores e renove o prazo antes de reenviar ao tutor.</div></div>';
+  }
+
+  h += '<div class="dash orced' + (travado ? " bloqueado" : "") + '" style="margin-top:0" id="oed"><div class="grid">';
+  /* paciente */
+  h += '<div class="card"><h3>Paciente e responsável</h3><div class="formgrid">'
+    + campo("c6", "opet", "Pet", '<select id="opet">' + opt(selPets(), o.petId, "— sem pet vinculado —") + '</select>')
+    + campo("c6", "ocli", 'Tutor <span style="color:var(--danger)">*</span>', '<select id="ocli">' + opt(selClientes(), o.clienteId, "Selecione") + '</select>')
+    + campo("c4", "odata", "Emissão", '<input id="odata" type="date" value="' + esc(o.data) + '">')
+    + campo("c4", "oval", "Válido até", '<input id="oval" type="date" value="' + esc(o.validade) + '">'
+      + '<div class="prazos">' + [7, 15, 30].map(n => '<button class="chip" type="button" data-pz="' + n + '">' + n + ' dias</button>').join("") + '</div>')
+    + campo("c4", "oprof", "Veterinário(a)", '<select id="oprof">' + opt(profs, o.profissional, "—") + '</select>')
+    + campo("c12", "otit", "Referente a", '<input id="otit" value="' + esc(o.titulo || "") + '" placeholder="Ex.: castração eletiva, tratamento dentário, internação de 3 dias">')
+    + '</div></div>';
+  /* itens */
+  h += '<div class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Itens do orçamento</h3><span class="muted" id="nitens"></span></div>'
+    + (travado ? "" : '<div class="row" style="margin:10px 0 6px;align-items:flex-start">'
+      + '<div class="field catbusca" style="flex:1;min-width:210px"><input id="obusca" type="search" placeholder="Buscar serviço, exame, medicamento…" autocomplete="off" aria-label="Buscar item da tabela de preços">'
+      + '<div class="results" id="ores" hidden></div></div><button class="btn" id="olivre">+ Item livre</button></div>')
+    + '<div class="tablewrap" style="border:0;margin-top:6px"><table class="orcitens"><thead><tr><th>Descrição</th><th class="num">Qtd</th><th class="num">Valor unit.</th><th class="num">Total</th><th></th></tr></thead>'
+    + '<tbody id="obody"></tbody></table></div></div>';
+  h += '</div><div class="grid">';
+  /* totais */
+  h += '<div class="card"><h3>Resumo</h3><dl class="orctot">'
+    + '<dt>Subtotal</dt><dd id="tsub"></dd>'
+    + '<dt><label for="odesc">Desconto</label></dt><dd><div class="desconto"><input id="odesc" type="number" step="0.01" min="0" value="' + (Number(o.desconto) || "") + '" placeholder="0">'
+    + '<select id="odtipo" aria-label="Tipo de desconto"><option' + (o.descontoTipo !== "%" ? " selected" : "") + '>R$</option><option' + (o.descontoTipo === "%" ? " selected" : "") + '>%</option></select></div></dd>'
+    + '<dt></dt><dd id="tdesc" class="muted" style="font-weight:400"></dd>'
+    + '<dd class="big"><span>Total</span><b id="ttot"></b></dd></dl></div>';
+  /* textos */
+  h += '<div class="card"><h3>Condições e observações</h3><div class="formgrid">'
+    + campo("c12", "ocond", "Condições de pagamento", '<textarea id="ocond" style="min-height:104px">' + esc(o.condicoes || "") + '</textarea>')
+    + campo("c12", "oobs", "Observações para o tutor", '<textarea id="oobs" style="min-height:86px" placeholder="Ex.: jejum de 8 horas no dia da cirurgia; valor não inclui medicação para casa.">' + esc(o.obs || "") + '</textarea>', "Saem impressas no orçamento.")
+    + campo("c12", "onotas", "Anotações internas", '<textarea id="onotas" class="livre" style="min-height:58px" placeholder="Ex.: tutor pediu para retornar na sexta.">' + esc(o.notas || "") + '</textarea>', "Ficam só no sistema, não aparecem no PDF.")
+    + '</div></div>';
+  if (orig) {
+    h += '<div class="card"><h3>Histórico</h3><dl class="kv">'
+      + '<dt>Criado</dt><dd>' + (orig.criadoEm ? fmtDT(orig.criadoEm) : fmtD(orig.data)) + (orig.criadoPor ? " · " + esc(orig.criadoPor) : "") + '</dd>'
+      + (orig.reabertoEm ? '<dt>Prazo renovado</dt><dd>' + fmtD(orig.reabertoEm) + '</dd>' : "")
+      + (orig.aprovadoEm ? '<dt>Aprovado</dt><dd>' + fmtD(orig.aprovadoEm) + '</dd>' : "")
+      + (orig.recusadoEm ? '<dt>Recusado</dt><dd>' + fmtD(orig.recusadoEm) + '</dd>' : "")
+      + (orig.duplicadoDe ? '<dt>Nova versão de</dt><dd><button class="linkish mono" id="vorig">' + esc(orig.duplicadoDe.numero) + '</button></dd>' : "")
+      + (orig.agendaId ? '<dt>Agendamento</dt><dd><button class="linkish" id="vag">Ver na agenda</button></dd>' : "")
+      + '</dl><div class="row" style="margin-top:12px"><button class="btn sm dang" id="excluir">Excluir orçamento</button></div></div>';
+  }
+  h += '</div></div>';
+  v.innerHTML = h;
+
+  const ed = $("#oed", v);
+  if (travado) $$("input,select,textarea", ed).forEach(el => { if (!el.classList.contains("livre")) el.disabled = true; });
+  const marca = () => { sujo = true; };
+
+  /* ----- totais ----- */
+  const atualizaTot = () => {
+    o.desconto = parseFloat($("#odesc", v).value) || 0;
+    o.descontoTipo = $("#odtipo", v).value;
+    const t = totaisOrc(o);
+    $("#tsub", v).textContent = money(t.sub);
+    $("#tdesc", v).textContent = t.desc > 0 ? "− " + money(t.desc) + (o.descontoTipo === "%" ? " (" + fmtQtd(o.desconto) + "%)" : "") : "";
+    $("#ttot", v).textContent = money(t.total);
+    $("#nitens", v).textContent = o.itens.length ? o.itens.length + " item(ns)" : "";
+  };
+  /* ----- itens ----- */
+  const desenhaItens = (foco) => {
+    const b = $("#obody", v);
+    if (!o.itens.length) {
+      b.innerHTML = '<tr><td colspan="5"><div class="empty" style="padding:22px 10px"><span class="big">🧾</span>Busque um serviço, exame ou produto acima para montar o orçamento.</div></td></tr>';
+      atualizaTot(); return;
+    }
+    const grupos = [], gi = {};
+    o.itens.forEach((it, i) => { const c = catItem(it); if (!(c in gi)) { gi[c] = grupos.length; grupos.push({ c, l: [] }); } grupos[gi[c]].l.push(i); });
+    const multi = grupos.length > 1;
+    b.innerHTML = grupos.map(g => (multi ? '<tr class="grp"><td colspan="5">' + esc(g.c) + '</td></tr>' : "") + g.l.map(i => {
+      const it = o.itens[i];
+      return '<tr data-i="' + i + '"><td style="min-width:200px"><input class="ds" value="' + esc(it.descricao) + '" aria-label="Descrição" placeholder="Descrição do item">'
+        + (travado && !it.obs ? "" : '<input class="ob" value="' + esc(it.obs || "") + '" placeholder="Detalhe opcional (sai no PDF)" aria-label="Detalhe do item">')
+        + (!multi ? '<div class="cat">' + esc(catItem(it)) + '</div>' : "") + '</td>'
+        + '<td class="num"><input class="q" type="number" min="0" step="any" value="' + (Number(it.qtd) || 0) + '" aria-label="Quantidade"></td>'
+        + '<td class="num"><input class="vu" type="number" min="0" step="0.01" value="' + (Number(it.valor) || 0).toFixed(2) + '" aria-label="Valor unitário"></td>'
+        + '<td class="num tt">' + money((Number(it.qtd) || 0) * (Number(it.valor) || 0)) + '</td>'
+        + '<td><button class="btn sm ghost" type="button" data-rm="' + i + '" title="Remover item" aria-label="Remover item">✕</button></td></tr>';
+    }).join("")).join("");
+    $$("tr[data-i]", b).forEach(tr => {
+      const it = o.itens[+tr.dataset.i];
+      const up = () => {
+        it.descricao = $(".ds", tr).value; if ($(".ob", tr)) it.obs = $(".ob", tr).value;
+        it.qtd = parseFloat($(".q", tr).value) || 0; it.valor = parseFloat($(".vu", tr).value) || 0;
+        $(".tt", tr).textContent = money(it.qtd * it.valor);
+        marca(); atualizaTot();
+      };
+      $$("input", tr).forEach(inp => inp.oninput = up);
+    });
+    $$("[data-rm]", b).forEach(x => x.onclick = () => { o.itens.splice(+x.dataset.rm, 1); marca(); desenhaItens(); });
+    if (travado) $$("input", b).forEach(el => el.disabled = true);
+    if (foco !== undefined) { const tr = $('tr[data-i="' + foco + '"]', b); if (tr) { const el = $(o.itens[foco].descricao ? ".q" : ".ds", tr); el.focus(); el.select && el.select(); } }
+    atualizaTot();
+  };
+  const addItem = (it) => {
+    o.itens.push(Object.assign({ id: uid(), tipo: "livre", refId: "", descricao: "", obs: "", qtd: 1, valor: 0, categoria: "" }, it));
+    marca(); desenhaItens(o.itens.length - 1);
+  };
+
+  /* ----- busca na tabela de preços e no estoque ----- */
+  const busca = $("#obusca", v), res = $("#ores", v);
+  if (busca) {
+    const catalogo = () => DB.servicos.map(s => ({ tipo: "servico", refId: s.id, nome: s.nome, cat: s.categoria || "Procedimentos", preco: Number(s.preco) || 0, det: s.categoria || "" }))
+      .concat(DB.produtos.map(p => ({ tipo: "produto", refId: p.id, nome: p.nome, cat: "Medicamentos e materiais", preco: Number(p.preco) || 0,
+        det: (p.categoria || "Produto") + " · estoque " + fmtQtd(p.estoque) + " " + (p.unidade || "") })));
+    let achados = [];
+    const mostra = () => {
+      const t = semAcento(busca.value.trim());
+      const cat = catalogo();
+      achados = (t ? cat.filter(c => semAcento(c.nome + " " + c.cat).includes(t)) : cat.filter(c => c.tipo === "servico")).slice(0, 40);
+      if (!achados.length) {
+        res.innerHTML = '<button type="button" data-livre="1"><div class="t">Adicionar “' + esc(busca.value.trim()) + '” como item livre</div><div class="d">Não está na tabela de preços — você informa o valor.</div></button>';
+      } else {
+        res.innerHTML = achados.map((c, i) => '<button type="button" data-c="' + i + '"><span class="p">' + money(c.preco) + '</span><div class="t">' + esc(c.nome) + '</div>'
+          + '<div class="d">' + esc(c.tipo === "produto" ? c.det : c.cat) + '</div></button>').join("");
+      }
+      res.hidden = !t && !achados.length;
+      $$("[data-c]", res).forEach(b => b.onmousedown = (e) => {
+        e.preventDefault();
+        const c = achados[+b.dataset.c];
+        busca.value = ""; res.hidden = true;
+        addItem({ tipo: c.tipo, refId: c.refId, descricao: c.nome, valor: c.preco, categoria: c.cat });
+      });
+      const lv = $("[data-livre]", res);
+      if (lv) lv.onmousedown = (e) => { e.preventDefault(); const n = busca.value.trim(); busca.value = ""; res.hidden = true; addItem({ descricao: n, categoria: "Outros itens" }); };
+    };
+    busca.oninput = mostra;
+    busca.onfocus = mostra;
+    busca.onblur = () => setTimeout(() => { res.hidden = true; }, 160);
+    busca.onkeydown = (e) => {
+      if (e.key === "Enter") { e.preventDefault(); const f = $("[data-c],[data-livre]", res); if (f && !res.hidden) f.dispatchEvent(new MouseEvent("mousedown", { cancelable: true })); }
+      if (e.key === "Escape") { res.hidden = true; }
+    };
+    $("#olivre", v).onclick = () => addItem({ categoria: "Outros itens" });
+  }
+
+  /* ----- campos ----- */
+  $("#opet", v).onchange = (e) => { const p = Q.pet(e.target.value); if (p) $("#ocli", v).value = p.clienteId; marca(); };
+  $("#ocli", v).onchange = () => { const p = Q.pet($("#opet", v).value); if (p && p.clienteId !== $("#ocli", v).value) $("#opet", v).value = ""; marca(); };
+  $$("[data-pz]", v).forEach(b => b.onclick = () => { $("#oval", v).value = addDays($("#odata", v).value || todayISO(), +b.dataset.pz); marca(); });
+  $$("#odata,#oval,#oprof,#otit,#ocond,#oobs,#onotas", v).forEach(el => el.addEventListener("input", marca));
+  $("#odesc", v).oninput = () => { marca(); atualizaTot(); };
+  $("#odtipo", v).onchange = () => { marca(); atualizaTot(); };
+
+  const coletar = () => {
+    o.petId = $("#opet", v).value; o.clienteId = $("#ocli", v).value;
+    o.data = $("#odata", v).value || todayISO(); o.validade = $("#oval", v).value;
+    o.profissional = $("#oprof", v).value; o.titulo = $("#otit", v).value.trim();
+    o.condicoes = $("#ocond", v).value; o.obs = $("#oobs", v).value; o.notas = $("#onotas", v).value;
+    o.desconto = parseFloat($("#odesc", v).value) || 0; o.descontoTipo = $("#odtipo", v).value;
+  };
+  const salvar = (quieto) => {
+    if (travado) {
+      orig.notas = $("#onotas", v).value; sujo = false; save();
+      if (!quieto) toast("Anotações salvas", "ok");
+      return orig;
+    }
+    coletar();
+    o.itens = o.itens.filter(it => String(it.descricao || "").trim()).map(it => Object.assign(it, { descricao: it.descricao.trim(), qtd: Number(it.qtd) || 0, valor: r2(it.valor) }));
+    if (!o.clienteId) { toast("Escolha o tutor do orçamento.", "err"); $("#ocli", v).focus(); return null; }
+    if (!o.itens.length) { toast("Adicione pelo menos um item com descrição.", "err"); desenhaItens(); return null; }
+    if (o.validade && o.validade < o.data) { toast("A validade não pode ser antes da emissão.", "err"); return null; }
+    let reg;
+    if (orig) {
+      Object.assign(orig, o); reg = orig;
+      registrar("Orçamento alterado", numeroOrc(reg) + " · " + money(totaisOrc(reg).total));
+    } else {
+      o.id = uid(); o.numero = proximoNumeroOrc(); o.criadoEm = nowDT(); o.criadoPor = nomeUsuario();
+      DB.orcamentos.push(o); reg = o;
+      registrar("Orçamento criado", numeroOrc(reg) + " · " + Q.nomeCliente(reg.clienteId) + " · " + money(totaisOrc(reg).total));
+    }
+    sujo = false;
+    save();
+    if (!quieto) toast("Orçamento " + numeroOrc(reg) + " salvo", "ok");
+    return reg;
+  };
+  /* salva o que estiver pendente e abre o registro salvo */
+  const comSalvo = (fn) => {
+    const reg = (!orig || sujo) ? salvar(true) : orig;
+    if (!reg) return;
+    fn(reg);
+    if (!orig) setTimeout(() => go("orcamentos/" + reg.id), 60);
+  };
+
+  $("#volta", v).onclick = () => { if (sujo) confirmar("Sair sem salvar as alterações deste orçamento?", () => go("orcamentos"), "Sair sem salvar"); else go("orcamentos"); };
+  $("#salvar", v).onclick = () => { const reg = salvar(); if (reg && !orig) go("orcamentos/" + reg.id); else if (reg) render(); };
+  $("#pdf", v).onclick = () => {
+    if (travado || (orig && !sujo)) { imprimirOrcamento(orig); return; }
+    /* a janela precisa abrir no mesmo clique, antes de qualquer navegação */
+    const reg = salvar(true); if (!reg) return;
+    imprimirOrcamento(reg);
+    if (!orig) setTimeout(() => go("orcamentos/" + reg.id), 60);
+  };
+  $("#wpp", v).onclick = () => comSalvo(reg => whatsOrcamento(reg));
+  const bt = (idb, fn) => { const b = $("#" + idb, v); if (b) b.onclick = fn; };
+  bt("aprovar", () => { const reg = sujo ? salvar(true) : orig; if (reg) aprovarOrc(reg); });
+  bt("recusar", () => { const reg = sujo ? salvar(true) : orig; if (reg) recusarOrc(reg); });
+  bt("renovar", () => {
+    const reg = sujo ? salvar(true) : orig; if (!reg) return;
+    reg.status = "Aberto"; reg.reabertoEm = todayISO();
+    reg.validade = addDays(todayISO(), Number(cfg.validadeOrc) || 15);
+    delete reg.motivoRecusa; delete reg.detalheRecusa; delete reg.recusadoEm;
+    registrar("Orçamento reaberto", numeroOrc(reg) + " · válido até " + fmtD(reg.validade));
+    save(); render(); toast("Prazo renovado até " + fmtD(reg.validade), "ok");
+  });
+  bt("dup", () => duplicarOrc(orig));
+  bt("vag", () => { agendaRef = (DB.agenda.find(a => a.id === orig.agendaId) || {}).data || todayISO(); go("agenda"); });
+  bt("vorig", () => go("orcamentos/" + orig.duplicadoDe.id));
+  bt("excluir", () => confirmar("Excluir o orçamento " + numeroOrc(orig) + "?" + (orig.status === "Aprovado" ? " Os lançamentos no caixa e o agendamento gerados na aprovação continuam onde estão." : ""), () => {
+    registrar("Orçamento excluído", numeroOrc(orig) + " · " + Q.nomeCliente(orig.clienteId) + " · " + money(totaisOrc(orig).total));
+    DB.orcamentos = DB.orcamentos.filter(x => x.id !== orig.id);
+    save(); go("orcamentos"); toast("Orçamento excluído");
+  }));
+
+  desenhaItens();
+}
+
+/* ------------------------- AÇÕES ------------------------- */
+function duplicarOrc(o) {
+  const cfg = DB.config;
+  const n = JSON.parse(JSON.stringify(o));
+  ["aprovadoEm", "aprovadoPor", "comoAprovou", "recusadoEm", "motivoRecusa", "detalheRecusa", "reabertoEm", "agendaId", "baixaEstoque", "origem", "notas"].forEach(k => delete n[k]);
+  Object.assign(n, {
+    id: uid(), numero: proximoNumeroOrc(), data: todayISO(), validade: addDays(todayISO(), Number(cfg.validadeOrc) || 15),
+    status: "Aberto", criadoEm: nowDT(), criadoPor: nomeUsuario(), duplicadoDe: { id: o.id, numero: numeroOrc(o) }
+  });
+  n.itens = (n.itens || []).map(it => Object.assign(it, { id: uid() }));
+  DB.orcamentos.push(n);
+  registrar("Orçamento duplicado", numeroOrc(o) + " → " + numeroOrc(n));
+  save(); go("orcamentos/" + n.id);
+  toast("Nova versão " + numeroOrc(n) + " criada — ajuste o que precisar e salve", "ok");
+}
+
+function aprovarOrc(o) {
+  const t = totaisOrc(o);
+  const prods = (o.itens || []).filter(i => i.tipo === "produto" && Q.produto(i.refId));
+  const tipoAg = sugerirTipoAg(o);
+  const profs = selProf();
+  const alvo = o.petId ? Q.nomePet(o.petId) + " · " + Q.nomeCliente(o.clienteId) : Q.nomeCliente(o.clienteId);
+  const body = '<div class="sheet" style="display:flex;justify-content:space-between;gap:10px;margin-bottom:14px"><div><b class="mono">' + numeroOrc(o) + '</b><div class="muted" style="font-size:13px">' + esc(alvo) + '</div></div>'
+    + '<b style="font-family:var(--display);font-size:22px">' + money(t.total) + '</b></div>'
+    + '<label class="check"><input type="checkbox" id="afin"' + (t.total > 0 ? " checked" : " disabled") + '> <b>Lançar no financeiro</b></label>'
+    + '<div class="formgrid" id="afinbox" style="margin:8px 0 14px">'
+    + '<div class="c6"><div class="field"><label for="aforma">Forma de pagamento</label><select id="aforma">' + FORMAS.map(f => '<option' + (f === "Pix" ? " selected" : "") + '>' + esc(f) + '</option>').join("") + '</select></div></div>'
+    + '<div class="c6"><div class="field"><label for="arec">Recebido agora (R$)</label><input id="arec" type="number" step="0.01" min="0" value="' + t.total.toFixed(2) + '">'
+    + '<span style="font-size:11.5px;color:var(--ink-3)">O que faltar fica como valor a receber na ficha do tutor.</span></div></div></div>'
+    + (prods.length ? '<label class="check" style="margin-bottom:12px"><input type="checkbox" id="aest" checked> <span><b>Dar baixa no estoque</b> <span class="muted">('
+      + prods.map(i => fmtQtd(i.qtd) + " " + (Q.produto(i.refId).unidade || "un") + " " + esc(i.descricao)).join(", ") + ')</span></span></label>' : "")
+    + '<label class="check"><input type="checkbox" id="aag"' + (tipoAg ? " checked" : "") + '> <b>Agendar o procedimento</b></label>'
+    + '<div class="formgrid" id="aagbox" style="margin:8px 0 12px">'
+    + '<div class="c4"><div class="field"><label for="aagd">Data</label><input id="aagd" type="date" value="' + addDays(todayISO(), 1) + '"></div></div>'
+    + '<div class="c3"><div class="field"><label for="aagh">Hora</label><input id="aagh" type="time" value="08:00"></div></div>'
+    + '<div class="c5"><div class="field"><label for="aagt">Tipo</label><select id="aagt">' + TIPOS_AG.map(x => '<option' + (x === (tipoAg || "Consulta") ? " selected" : "") + '>' + esc(x) + '</option>').join("") + '</select></div></div>'
+    + '<div class="c12"><div class="field"><label for="aagp">Profissional</label><select id="aagp"><option value="">—</option>' + profs.map(x => '<option' + (x === o.profissional ? " selected" : "") + '>' + esc(x) + '</option>').join("") + '</select></div></div></div>'
+    + '<div class="field"><label for="aobs">Como o tutor aprovou</label><input id="aobs" placeholder="Ex.: por WhatsApp, assinou na recepção, por telefone"></div>';
+  openModal({
+    title: "Registrar aprovação", body: body,
+    footer: '<button class="btn" data-close>Cancelar</button><button class="btn ok" id="aok">Confirmar aprovação</button>',
+    onMount: (m) => {
+      const liga = (chk, box) => { const c = $("#" + chk, m), b = $("#" + box, m); if (!c || !b) return; const f = () => b.hidden = !c.checked; c.onchange = f; f(); };
+      liga("afin", "afinbox"); liga("aag", "aagbox");
+      $("#aforma", m).onchange = (e) => { if (e.target.value === "Fiado") $("#arec", m).value = "0.00"; };
+      $("#aok", m).onclick = () => {
+        const hoje = todayISO();
+        const fin = $("#afin", m).checked && t.total > 0;
+        const forma = $("#aforma", m).value;
+        const rec = Math.min(Math.max(parseFloat($("#arec", m).value) || 0, 0), t.total);
+        const ag = $("#aag", m).checked;
+        if (ag && !$("#aagd", m).value) { toast("Informe a data do agendamento.", "err"); return; }
+        o.status = "Aprovado"; o.aprovadoEm = hoje; o.aprovadoPor = nomeUsuario(); o.comoAprovou = $("#aobs", m).value.trim();
+        if (fin) {
+          const cat = categoriaFinOrc(o);
+          const desc = "Orçamento " + numeroOrc(o) + " — " + (o.petId ? Q.nomePet(o.petId) + " · " : "") + (o.titulo || resumoItens(o));
+          const base = { data: hoje, tipo: "Receita", categoria: cat, clienteId: o.clienteId, ref: o.id };
+          if (rec > 0) DB.financeiro.push(Object.assign({ id: uid(), descricao: desc, valor: r2(rec), forma: forma === "Fiado" ? "Dinheiro" : forma, status: "Pago" }, base));
+          if (t.total - rec > 0.009) DB.financeiro.push(Object.assign({ id: uid(), descricao: desc + (rec > 0 ? " (saldo a receber)" : ""), valor: r2(t.total - rec), forma: forma, status: "Pendente" }, base));
+        }
+        if ($("#aest", m) && $("#aest", m).checked) {
+          prods.forEach(i => {
+            const p = Q.produto(i.refId), q = Number(i.qtd) || 0;
+            p.estoque = r2(Number(p.estoque || 0) - q);
+            DB.movimentos.push({ id: uid(), produtoId: p.id, tipo: "Saída", qtd: q, motivo: "Venda", data: hoje, obs: numeroOrc(o) });
+          });
+          o.baixaEstoque = true;
+        }
+        if (ag) {
+          const a = {
+            id: uid(), petId: o.petId || "", clienteId: o.clienteId, titulo: o.petId ? "" : (o.titulo || "Orçamento " + numeroOrc(o)),
+            data: $("#aagd", m).value, hora: $("#aagh", m).value || "08:00", tipo: $("#aagt", m).value, status: "Agendado",
+            profissional: $("#aagp", m).value, valor: 0, levaTraz: false,
+            obs: "Orçamento " + numeroOrc(o) + " aprovado" + (o.titulo ? " — " + o.titulo : ""), servicoIds: [], checklist: [], orcamentoId: o.id
+          };
+          DB.agenda.push(a); o.agendaId = a.id;
+        }
+        registrar("Orçamento aprovado", numeroOrc(o) + " · " + Q.nomeCliente(o.clienteId) + " · " + money(t.total));
+        save(); closeModal(); render();
+        toast("Orçamento aprovado" + (fin ? " e lançado no caixa" : ""), "ok");
+      };
+    }
+  });
+}
+
+function recusarOrc(o) {
+  openModal({
+    title: "Registrar recusa", size: "narrow",
+    body: '<p style="margin:0 0 12px">O tutor não aprovou o orçamento <b class="mono">' + numeroOrc(o) + '</b>. Saber o motivo ajuda a ajustar os preços e o atendimento.</p>'
+      + '<div class="field" style="margin-bottom:10px"><label for="rmot">Motivo</label><select id="rmot">' + MOTIVOS_RECUSA.map(x => '<option>' + esc(x) + '</option>').join("") + '</select></div>'
+      + '<div class="field"><label for="rdet">Detalhe (opcional)</label><input id="rdet" placeholder="Ex.: achou caro, vai fazer só os exames"></div>',
+    footer: '<button class="btn" data-close>Cancelar</button><button class="btn dang" id="rok">Registrar recusa</button>',
+    onMount: (m) => {
+      $("#rok", m).onclick = () => {
+        o.status = "Recusado"; o.recusadoEm = todayISO();
+        o.motivoRecusa = $("#rmot", m).value; o.detalheRecusa = $("#rdet", m).value.trim();
+        registrar("Orçamento recusado", numeroOrc(o) + " · " + o.motivoRecusa);
+        save(); closeModal(); render(); toast("Recusa registrada");
+      };
+    }
+  });
+}
+
+function whatsOrcamento(o) {
+  if (!o) return;
+  const c = Q.cliente(o.clienteId) || {};
+  const t = totaisOrc(o);
+  const vars = Object.assign(baseVars(o.clienteId, o.petId), {
+    numero: numeroOrc(o),
+    itens: (o.itens || []).map(i => "• " + ((Number(i.qtd) || 0) !== 1 ? fmtQtd(i.qtd) + "x " : "") + i.descricao + " — " + money((Number(i.qtd) || 0) * (Number(i.valor) || 0))).join("\n")
+      + (t.desc > 0 ? "\n\nSubtotal: " + money(t.sub) + "\nDesconto: − " + money(t.desc) : ""),
+    valor: money(t.total), validade: fmtD(o.validade), condicoes: o.condicoes || "", descricao: o.titulo || ""
+  });
+  if (!o.petId) vars.pet = "seu pet";
+  enviarWhats({ tel: c.telefone, nome: c.nome, texto: preencher(tplMsg("orcamento"), vars).replace(/\n{3,}/g, "\n\n"), titulo: "Enviar orçamento pelo WhatsApp" });
+}
+
+/* ------------------------- PAPEL TIMBRADO ------------------------- */
+function imprimirOrcamento(o) {
+  if (!o) return;
+  const p = Q.pet(o.petId) || null, c = Q.cliente(o.clienteId) || {}, cfg = DB.config;
+  const t = totaisOrc(o), sit = situacaoOrc(o);
+  const contato = [
+    cfg.telefone ? { r: "Telefone", v: cfg.telefone } : null,
+    cfg.whatsapp ? { r: "WhatsApp", v: cfg.whatsapp } : null,
+    cfg.email ? { r: "E-mail", v: cfg.email } : null
+  ].filter(Boolean);
+  const dias = o.validade ? diffDays(o.data, o.validade) : 0;
+
+  /* itens agrupados por categoria, na ordem em que aparecem */
+  const grupos = [], gi = {};
+  (o.itens || []).forEach(it => { const k = catItem(it); if (!(k in gi)) { gi[k] = grupos.length; grupos.push({ c: k, l: [] }); } grupos[gi[k]].l.push(it); });
+  const multi = grupos.length > 1;
+  let n = 0;
+  const linhas = grupos.map(g => {
+    const st = g.l.reduce((s, it) => s + (Number(it.qtd) || 0) * (Number(it.valor) || 0), 0);
+    return (multi ? '<tr class="grp"><td colspan="4">' + esc(g.c) + '</td><td class="num">' + money(st) + '</td></tr>' : "")
+      + g.l.map(it => '<tr><td class="n">' + (++n) + '</td><td class="ds">' + esc(it.descricao) + (it.obs ? '<span class="ob">' + esc(it.obs) + '</span>' : "") + '</td>'
+        + '<td class="num">' + fmtQtd(it.qtd) + '</td><td class="num">' + money(it.valor) + '</td><td class="num tot">' + money((Number(it.qtd) || 0) * (Number(it.valor) || 0)) + '</td></tr>').join("");
+  }).join("");
+
+  const selo = sit === "Aprovado" ? '<span class="selo ok">Aprovado em ' + fmtD(o.aprovadoEm) + '</span>'
+    : sit === "Recusado" ? '<span class="selo no">Recusado</span>'
+    : sit === "Vencido" ? '<span class="selo no">Validade expirada</span>' : "";
+  const cidade = cidadeClinica();
+
+  const w = window.open("", "_blank");
+  if (!w) { toast("Permita janelas pop-up para gerar o PDF.", "err"); return; }
+
+  const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">'
+    + '<title>Orçamento ' + numeroOrc(o) + ' — ' + esc(p ? p.nome : c.nome || "") + '</title>'
+    + '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+    + '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">'
+    + '<style>'
+    + '@page{size:A4;margin:8mm 0 6mm}'
+    + '*{box-sizing:border-box}html,body{margin:0;padding:0}'
+    + 'body{font-family:"Source Sans 3",system-ui,"Segoe UI",sans-serif;color:#2B2133;background:#EDE9F1;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    + '.folha{position:relative;width:210mm;min-height:297mm;margin:22px auto;background:#fff;padding:0 18mm 26mm;box-shadow:0 18px 50px rgba(43,33,51,.22);overflow:hidden}'
+    + '.wm{position:absolute;top:50%;left:50%;width:118mm;height:118mm;transform:translate(-50%,-50%) rotate(-12deg);opacity:.04;z-index:0;pointer-events:none}'
+    + '.conteudo{position:relative;z-index:1}'
+    + '.faixa{position:absolute;top:0;left:0;right:0;height:7px;background:linear-gradient(90deg,#3C2452 0%,#5C3A7B 42%,#9BD9A8 100%);z-index:2}'
+    /* cabeçalho (igual ao receituário) */
+    + '.cab{display:flex;gap:16px;align-items:flex-start;padding:16mm 0 9px}'
+    + '.cab img{width:74px;height:74px;border-radius:14px;flex:none;box-shadow:0 3px 10px rgba(60,36,82,.28)}'
+    + '.ident{flex:1;min-width:0}'
+    + '.ident h1{margin:0;font-size:18.4pt;font-weight:700;letter-spacing:-.2px;color:#3C2452;line-height:1.14}'
+    + '.ident .rt{font-size:9.6pt;color:#5C3A7B;font-weight:600;margin-top:3px}'
+    + '.ident .cnpj{font-size:8.4pt;color:#79708A;letter-spacing:.3px;margin-top:2px}'
+    + '.contato{text-align:right;font-size:8.4pt;color:#4A4156;line-height:1.5;min-width:44mm;white-space:nowrap}'
+    + '.contato b{display:block;font-size:7pt;letter-spacing:1.4px;text-transform:uppercase;color:#9B90AA;font-weight:700}'
+    + '.contato span{display:block;margin-bottom:4px}'
+    + '.regua{height:2px;background:#5C3A7B;position:relative;margin-bottom:3px}'
+    + '.regua::after{content:"";position:absolute;right:0;top:0;height:2px;width:38%;background:#9BD9A8}'
+    + '.endereco{font-size:8.4pt;color:#79708A;padding-bottom:12px;border-bottom:1px solid #E6DEEC}'
+    /* título */
+    + '.titulo{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:18px 0 13px}'
+    + '.titulo h2{margin:0;font-size:12.4pt;letter-spacing:4.2px;text-transform:uppercase;font-weight:700;color:#3C2452}'
+    + '.titulo .num{font-size:9pt;color:#5C3A7B;letter-spacing:.8px;font-weight:700;margin-top:4px}'
+    + '.titulo .num span{color:#79708A;font-weight:400;letter-spacing:.3px}'
+    + '.validade{text-align:right}'
+    + '.validade .v{display:inline-block;border:1.2px solid #9BD9A8;background:#EEF7F0;color:#20552F;border-radius:20px;padding:4px 12px;font-size:9pt;font-weight:700;letter-spacing:.3px}'
+    + '.validade .d{font-size:7.6pt;color:#79708A;margin-top:3px;letter-spacing:.3px}'
+    + '.selo{display:inline-block;margin-left:8px;border-radius:5px;padding:2px 8px;font-size:7.4pt;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;vertical-align:middle}'
+    + '.selo.ok{background:#E3F3E9;color:#20552F;border:1px solid #BFE3CB}.selo.no{background:#FBE7E4;color:#8E2B1F;border:1px solid #F0C6BF}'
+    /* identificação */
+    + '.fichas{display:flex;gap:11px;margin-bottom:14px}'
+    + '.ficha{flex:1;background:#FAF7FC;border:1px solid #EADFF2;border-left:3px solid #9BD9A8;border-radius:7px;padding:10px 13px}'
+    + '.ficha h3{margin:0 0 7px;font-size:7pt;letter-spacing:1.6px;text-transform:uppercase;color:#5C3A7B;font-weight:700}'
+    + '.ficha .nome{font-size:12.4pt;font-weight:700;color:#2B2133;line-height:1.2;margin-bottom:4px}'
+    + '.ficha dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:1px 8px;font-size:8.8pt}'
+    + '.ficha dt{color:#8C8299}.ficha dd{margin:0;color:#3B3347}'
+    + '.ref{font-family:"Source Serif 4",Georgia,serif;font-size:11.4pt;color:#2B2133;margin:0 0 14px;padding-left:2px}'
+    + '.ref b{font-family:"Source Sans 3",sans-serif;font-size:7.4pt;letter-spacing:2.4px;text-transform:uppercase;color:#5C3A7B;margin-right:8px}'
+    /* seções */
+    + '.sec{display:flex;align-items:center;gap:9px;margin:0 0 7px}'
+    + '.sec span{font-size:7.4pt;letter-spacing:2.4px;text-transform:uppercase;color:#5C3A7B;font-weight:700;white-space:nowrap}'
+    + '.sec i{flex:1;height:1px;background:#E6DEEC;display:block}'
+    /* tabela */
+    + 'table.itens{width:100%;border-collapse:collapse;font-size:9.8pt;margin-bottom:4px}'
+    + '.itens th{font-size:7pt;letter-spacing:1.4px;text-transform:uppercase;color:#79708A;font-weight:700;text-align:left;padding:6px 6px;border-bottom:1.4px solid #5C3A7B}'
+    + '.itens td{padding:7px 6px;border-bottom:1px dotted #DCD2E4;vertical-align:top;font-variant-numeric:tabular-nums}'
+    + '.itens .num{text-align:right;white-space:nowrap}'
+    + '.itens td.n{width:22px;color:#9B90AA;font-size:8.4pt;padding-top:8px}'
+    + '.itens td.ds{color:#2B2133}'
+    + '.itens .ob{display:block;font-size:8.6pt;color:#6E6480;margin-top:1px}'
+    + '.itens td.tot{font-weight:700;color:#2B2133}'
+    + '.itens tr.grp td{background:#F4EEF8;color:#5C3A7B;font-size:7.4pt;letter-spacing:1.6px;text-transform:uppercase;font-weight:700;padding:5px 6px;border-bottom:0}'
+    + '.itens tr{break-inside:avoid}'
+    /* totais */
+    + '.totais{display:flex;gap:12px;align-items:flex-start;margin:10px 0 14px;break-inside:avoid}'
+    + '.totais .esq{flex:1;min-width:0;display:flex;gap:10px;align-items:stretch}'
+    + '.totais .esq .caixa{flex:1;min-width:0}.totais .esq .caixa.cond{flex:1.35}'
+    + '.totais .box{width:60mm;flex:none}'
+    + '.totais .l{display:flex;justify-content:space-between;font-size:9.6pt;padding:3px 2px;color:#4A4156;font-variant-numeric:tabular-nums}'
+    + '.totais .l.dsc{color:#2F6E43}'
+    + '.totais .final{display:flex;justify-content:space-between;align-items:baseline;margin-top:6px;background:#5C3A7B;color:#fff;border-radius:7px;padding:9px 12px}'
+    + '.totais .final span{white-space:nowrap;font-size:7.4pt;letter-spacing:1.4px;text-transform:uppercase;font-weight:700;color:#E3D6EE}'
+    + '.totais .final b{font-size:14pt;letter-spacing:.2px;font-variant-numeric:tabular-nums}'
+    /* condições */
+    + '.caixa{border:1px solid #E6DEEC;border-radius:7px;padding:9px 12px;font-size:8.8pt;color:#3B3347;line-height:1.5;white-space:pre-line}'
+    + '.caixa h4{margin:0 0 4px;font-size:7pt;letter-spacing:1.6px;text-transform:uppercase;color:#5C3A7B;font-weight:700;white-space:normal}'
+    + '.termos{font-size:8.2pt;color:#6E6480;line-height:1.5;margin:0 0 14px;padding:0 2px;white-space:pre-line;break-inside:avoid}'
+    + '.termos b{color:#4A4156}'
+    /* autorização */
+    + '.aut{border:1.2px solid #D9CCE4;border-radius:9px;padding:12px 14px 14px;break-inside:avoid;background:#FDFBFE}'
+    + '.aut h4{margin:0 0 6px;font-size:7.4pt;letter-spacing:2.2px;text-transform:uppercase;color:#5C3A7B;font-weight:700}'
+    + '.aut p{margin:0 0 9px;font-size:9.2pt;color:#3B3347;line-height:1.5}'
+    + '.opcoes{display:flex;gap:22px;align-items:baseline;flex-wrap:wrap;font-size:9.4pt;font-weight:600;color:#2B2133;margin-bottom:26px}'
+    + '.opcoes em.local{font-style:normal;font-weight:400;margin:0 0 0 auto;font-size:9pt;color:#4A4156}'
+    + '.opcoes span::before{content:"";display:inline-block;width:11px;height:11px;border:1.4px solid #5C3A7B;border-radius:2px;margin-right:7px;vertical-align:-1px}'
+    + '.assinaturas{display:flex;gap:18mm}'
+    + '.assinaturas>div{flex:1;text-align:center}'
+    + '.assinaturas .linha{border-top:1.2px solid #3C2452;margin-bottom:4px}'
+    + '.assinaturas b{display:block;font-size:9.6pt;color:#2B2133}'
+    + '.assinaturas small{display:block;font-size:8pt;color:#79708A;letter-spacing:.3px;line-height:1.45}'
+        /* rodapé */
+    + '.rodape{position:absolute;left:18mm;right:18mm;bottom:9mm;border-top:1px solid #E6DEEC;padding-top:6px;text-align:center;font-size:7.2pt;color:#9B90AA;letter-spacing:.35px;line-height:1.5;z-index:1}'
+    + '.rodape em{font-style:normal;color:#C4BAD0;padding:0 5px}'
+    + '.dica{max-width:210mm;margin:16px auto 0;background:#EFE7F5;border-left:4px solid #5C3A7B;padding:11px 14px;border-radius:8px;font-size:10pt;color:#3C2452;line-height:1.5}'
+    + '.pag{width:100%;border-collapse:collapse}.pag td{padding:0}.reserva{height:0}'
+    + '@media print{body{background:#fff}.folha{margin:0;box-shadow:none;width:auto;min-height:0;padding:0 18mm}.dica{display:none}'
+    + '.cab{padding:6mm 0 6px}.cab img{width:64px;height:64px}.contato span{margin-bottom:1px}.wm{position:fixed;opacity:.045}'
+    + '.rodape{position:fixed;left:18mm;right:18mm;bottom:0}.reserva{height:12mm}'
+    + '.endereco{padding-bottom:8px}.titulo{margin:12px 0 9px}.fichas{margin-bottom:10px}.ficha{padding:7px 11px}.ref{margin-bottom:10px}'
+    + '.itens td{padding:5px 6px}.itens td.n{padding-top:6px}.totais{margin:6px 0 10px}.caixa{padding:7px 10px}'
+    + '.termos{margin-bottom:9px;font-size:7.8pt}.aut{padding:8px 12px 9px}.aut p{margin-bottom:5px}.opcoes{margin-bottom:22px}}'
+    + '</style></head><body>'
+    + '<div class="dica"><b>Para salvar em PDF:</b> na janela de impressão, escolha <b>Salvar como PDF</b> em “Destino”. '
+    + 'Depois é só anexar o arquivo na conversa do WhatsApp com o tutor ou imprimir para assinatura na recepção.</div>'
+    + '<div class="folha"><div class="faixa"></div>' + marcaDagua() + '<table class="pag"><tbody><tr><td><div class="conteudo">'
+    /* cabeçalho */
+    + '<div class="cab"><img src="' + LOGO_FULL + '" alt="">'
+    + '<div class="ident"><h1>' + esc(cfg.nome || "Clínica Veterinária") + '</h1>'
+    + (cfg.responsavel ? '<div class="rt">' + esc(cfg.responsavel) + (cfg.crmv ? " · CRMV " + esc(cfg.crmv) : "") + '</div>' : "")
+    + (cfg.cnpj || cfg.registroMapa ? '<div class="cnpj">' + [cfg.cnpj ? "CNPJ " + esc(cfg.cnpj) : "", cfg.registroMapa ? "Registro no MAPA " + esc(cfg.registroMapa) : ""].filter(Boolean).join(" · ") + '</div>' : "")
+    + '</div>'
+    + (contato.length ? '<div class="contato">' + contato.map(x => '<span><b>' + esc(x.r) + '</b>' + esc(x.v) + '</span>').join("") + '</div>' : "")
+    + '</div><div class="regua"></div><div class="endereco">' + esc(cfg.endereco || "") + '</div>'
+    /* título */
+    + '<div class="titulo"><div><h2>Orçamento' + selo + '</h2>'
+    + '<div class="num">' + numeroOrc(o) + ' <span>· emitido em ' + fmtD(o.data) + '</span></div></div>'
+    + (o.validade ? '<div class="validade"><span class="v">Válido até ' + fmtD(o.validade) + '</span>'
+      + (dias > 0 ? '<div class="d">' + dias + ' dia' + (dias > 1 ? "s" : "") + ' a partir da emissão</div>' : "") + '</div>' : "")
+    + '</div>'
+    /* fichas */
+    + '<div class="fichas">'
+    + (p ? '<div class="ficha"><h3>Paciente</h3><div class="nome">' + esc(p.nome) + '</div><dl>'
+      + '<dt>Espécie</dt><dd>' + esc(p.especie || "—") + (p.raca ? " · " + esc(p.raca) : "") + '</dd>'
+      + '<dt>Idade</dt><dd>' + esc(idade(p.nascimento)) + (p.sexo ? " · " + esc(p.sexo) : "") + '</dd>'
+      + '<dt>Peso</dt><dd>' + (p.peso ? p.peso + " kg" : "—") + '</dd></dl></div>' : "")
+    + '<div class="ficha"><h3>Tutor responsável</h3><div class="nome">' + esc(c.nome || "—") + '</div><dl>'
+    + (c.cpf ? '<dt>CPF</dt><dd>' + esc(c.cpf) + '</dd>' : "")
+    + (c.telefone ? '<dt>Contato</dt><dd>' + esc(c.telefone) + '</dd>' : "")
+    + (c.endereco || c.bairro ? '<dt>Endereço</dt><dd>' + esc([c.endereco, c.bairro, c.cidade].filter(Boolean).join(", ")) + '</dd>' : "")
+    + '</dl></div></div>'
+    + (o.titulo ? '<p class="ref"><b>Referente a</b>' + esc(o.titulo) + '</p>' : "")
+    /* itens */
+    + '<div class="sec"><span>Itens do orçamento</span><i></i></div>'
+    + '<table class="itens"><thead><tr><th>#</th><th>Descrição</th><th class="num">Qtd</th><th class="num">Valor unit.</th><th class="num">Total</th></tr></thead><tbody>' + linhas + '</tbody></table>'
+    /* totais */
+    + '<div class="totais"><div class="esq">'
+    + (o.condicoes ? '<div class="caixa cond"><h4>Condições de pagamento</h4>' + esc(o.condicoes) + '</div>' : "")
+    + (o.obs ? '<div class="caixa"><h4>Observações</h4>' + esc(o.obs) + '</div>' : "") + '</div><div class="box">'
+    + (t.desc > 0 ? '<div class="l"><span>Subtotal</span><span>' + money(t.sub) + '</span></div>'
+      + '<div class="l dsc"><span>Desconto' + (o.descontoTipo === "%" ? " (" + fmtQtd(o.desconto) + "%)" : "") + '</span><span>− ' + money(t.desc) + '</span></div>' : "")
+    + '<div class="final"><span>Valor total</span><b>' + money(t.total) + '</b></div></div></div>'
+    + (cfg.termosOrc ? '<p class="termos"><b>Informações importantes.</b> ' + esc(cfg.termosOrc) + '</p>' : "")
+    /* autorização */
+    + '<div class="aut"><h4>Autorização do tutor</h4>'
+    + '<p>Declaro que recebi as explicações sobre os procedimentos e valores descritos neste orçamento' + (p ? ' para o(a) paciente <b>' + esc(p.nome) + '</b>' : "") + ' e que:</p>'
+    + '<div class="opcoes"><span>Autorizo a realização</span><span>Não autorizo</span>'
+    + '<em class="local">' + (cidade ? esc(cidade) : "____________________") + ', ______ de __________________ de ________.</em></div>'
+    + '<div class="assinaturas"><div><div class="linha"></div><b>' + esc(c.nome || "Tutor responsável") + '</b><small>Tutor responsável' + (c.cpf ? " · CPF " + esc(c.cpf) : "") + '</small></div>'
+    + '<div><div class="linha"></div><b>' + esc(o.profissional || cfg.responsavel || "Médico(a) Veterinário(a)") + '</b><small>Médico(a) Veterinário(a)' + (cfg.crmv ? " · CRMV " + esc(cfg.crmv) : "")
+    + (cfg.registroMapa ? "<br>Registro no MAPA " + esc(cfg.registroMapa) : "") + '</small></div></div>'
+    + '</div>'
+    + '</div></td></tr></tbody><tfoot><tr><td><div class="reserva"></div></td></tr></tfoot></table>'
+    /* rodapé */
+    + '<div class="rodape">' + [
+      cfg.nome, cfg.cnpj ? "CNPJ " + cfg.cnpj : "", cfg.endereco,
+      cfg.whatsapp ? "WhatsApp " + cfg.whatsapp : (cfg.telefone || ""), cfg.email
+    ].filter(Boolean).map(x => esc(x)).join("<em>·</em>") + '</div>'
+    + '</div></body></html>';
+
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(() => { try { w.print(); } catch (e) { } }, 700);
+}
+
+/* ------------------------- EXEMPLOS (base nova) ------------------------- */
+function seedOrcamentos(db) {
+  const hoje = todayISO();
+  const sv = (nome) => db.servicos.find(s => s.nome === nome) || { id: "", nome, categoria: "Procedimentos", preco: 0 };
+  const it = (nome, qtd, obs) => { const s = sv(nome); return { id: uid(), tipo: s.id ? "servico" : "livre", refId: s.id, descricao: s.nome, obs: obs || "", qtd: qtd || 1, valor: Number(s.preco) || 0, categoria: s.categoria }; };
+  const pr = (i, qtd) => { const p = db.produtos[i]; return p ? { id: uid(), tipo: "produto", refId: p.id, descricao: p.nome, obs: "", qtd: qtd || 1, valor: Number(p.preco) || 0, categoria: "Medicamentos e materiais" } : null; };
+  const pets = db.pets;
+  if (!pets.length) return;
+  const P = (i) => pets[i % pets.length];
+  const vet = db.config.profissionais[0] || "";
+  const base = (n, pet, data, validade, extra) => Object.assign({
+    id: uid(), numero: n, data, validade, clienteId: pet.clienteId, petId: pet.id, profissional: vet, titulo: "", itens: [],
+    desconto: 0, descontoTipo: "R$", condicoes: db.config.condicoesOrc, obs: "", notas: "", status: "Aberto", criadoEm: data + "T10:00", criadoPor: ""
+  }, extra);
+  db.orcamentos = [
+    base(1, P(3), addDays(hoje, -40), addDays(hoje, -25), { titulo: "Retirada de nódulo em flanco esquerdo",
+      itens: [it("Consulta clínica"), it("Hemograma completo", 1, "Pré-operatório"), it("Retirada de nódulo cutâneo", 1, "Inclui histopatológico")] }),
+    base(2, P(1), addDays(hoje, -12), addDays(hoje, 3), { titulo: "Tratamento dentário", status: "Aprovado", aprovadoEm: addDays(hoje, -9), comoAprovou: "por WhatsApp",
+      itens: [it("Hemograma completo", 1, "Pré-anestésico"), it("Limpeza dentária (tartarectomia)"), it("Aplicação de medicação", 2)].concat([pr(13, 1)].filter(Boolean)), desconto: 5, descontoTipo: "%" }),
+    base(3, P(2), addDays(hoje, -8), addDays(hoje, 7), { titulo: "Investigação de vômitos", status: "Recusado", recusadoEm: addDays(hoje, -5), motivoRecusa: "Valor acima do esperado", detalheRecusa: "vai fazer só o hemograma",
+      itens: [it("Ultrassonografia abdominal"), it("Raio-X (duas projeções)"), it("Hemograma completo")] }),
+    base(4, P(0), addDays(hoje, -2), addDays(hoje, 13), { titulo: "Castração eletiva",
+      itens: [it("Consulta clínica", 1, "Avaliação pré-cirúrgica"), it("Hemograma completo"), it("Castração — fêmea", 1, "Anestesia inalatória e monitoração"), it("Aplicação de medicação", 3, "Analgésico e anti-inflamatório no pós")],
+      obs: "Jejum de 8 horas de comida e 2 horas de água antes da cirurgia. Trazer roupa cirúrgica ou colar elizabetano." }),
+    base(5, P(4), addDays(hoje, -12), addDays(hoje, 2), { titulo: "Protocolo de vacinas do filhote",
+      itens: [it("V10 (múltipla canina)", 3, "3 doses com intervalo de 21 dias"), it("Antirrábica"), it("Giárdia", 2)], desconto: 30 })
+  ];
+  db.config.seqOrc = 5;
 }
 </script>
 
@@ -4025,6 +4876,7 @@ function seed(db) {
   db.meta.seeded = true;
   db.meta.seedInt = true;
   seedInternacoes(db);
+  seedOrcamentos(db);
 }
 
 /* ======================== INICIALIZAÇÃO ======================== */
@@ -4032,6 +4884,7 @@ function novoRapido() {
   const acoes = [
     ["📅", "Agendamento", () => formAgendamento(null, { data: todayISO() })],
     ["✚", "Atendimento / prontuário", () => formAtendimento(null)],
+    ["🧾", "Orçamento", () => novoOrcamento({})],
     ["🛏", "Internação", () => formInternacao(null)],
     ["✂", "Banho e tosa", () => formAgendamento(null, { data: todayISO(), tipo: "Banho e tosa" })],
     ["💉", "Vacina aplicada", () => formVacina(null)],
