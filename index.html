@@ -1217,11 +1217,28 @@ function fichaCliente(v, id) {
     + '<dt>Endereço</dt><dd>' + esc([c.endereco, c.bairro, c.cidade].filter(Boolean).join(", ") || "—") + '</dd>'
     + '<dt>Cliente desde</dt><dd>' + fmtD(c.criadoEm) + '</dd></dl>'
     + (c.obs ? '<div class="sheet" style="margin-top:10px">' + esc(c.obs) + '</div>' : "") + '</div>';
-  h += '<div class="card"><h3>Financeiro</h3><div class="hint">Lançamentos ligados a este tutor.</div>'
-    + (aberto ? '<div class="alert warn"><span>⚠</span><div><b>' + money(aberto) + '</b> em aberto</div></div>' : "")
-    + (lanc.length ? lanc.slice(0, 10).map(l => '<div class="agitem"><div class="gr"><b>' + esc(l.descricao) + '</b><div class="muted" style="font-size:12.5px">' + fmtD(l.data) + ' · ' + esc(l.forma || "—") + '</div></div>'
-      + '<span class="mono" style="color:' + (l.tipo === "Receita" ? "var(--ok)" : "var(--danger)") + '">' + money(l.valor) + '</span></div>').join("")
-      : '<div class="muted">Nenhum lançamento.</div>') + '</div>';
+  const dinheiro = podeVerDinheiro();
+  const pend = pendentesDoTutor(id);
+  const pagos = lanc.filter(l => !(l.tipo === "Receita" && l.status === "Pendente"));
+  h += '<div class="card"><h3>Financeiro</h3><div class="hint">Saldo devedor e lançamentos ligados a este tutor.</div>'
+    + (aberto
+      ? '<div class="alert warn" style="align-items:center;flex-wrap:wrap"><span>⚠</span><div style="flex:1;min-width:140px"><b style="font-size:16px">' + money(aberto) + '</b> em aberto'
+        + '<div class="muted" style="font-size:12.5px">' + pend.length + ' lançamento(s) a receber</div></div>'
+        + (dinheiro ? '<div class="row" style="gap:6px"><button class="btn sm ok" id="receber">Receber pagamento</button><button class="btn sm" id="ajsaldo">Ajustar saldo</button>'
+          + '<button class="btn sm" id="wcob">Cobrar no WhatsApp</button></div>' : '') + '</div>'
+      : '<div class="alert" style="border-left-color:var(--ok);background:var(--ok-weak);align-items:center"><span>✓</span><div style="flex:1">Nenhum valor em aberto.</div>'
+        + (dinheiro ? '<button class="btn sm" id="ajsaldo">Lançar valor a receber</button>' : '') + '</div>')
+    + (pend.length ? '<div class="sec-title" style="margin:10px 0 4px"><h2 style="font-size:13.5px">Em aberto</h2><div class="line"></div></div>'
+      + pend.map(l => '<div class="agitem"><div class="gr"><b>' + esc(l.descricao) + '</b><div class="muted" style="font-size:12.5px">' + fmtD(l.data)
+        + ((l.historico || []).length ? ' · <button class="linkish" data-hist="' + l.id + '" style="font-size:12.5px">' + l.historico.length + ' movimento(s)</button>' : '') + '</div></div>'
+        + '<span class="mono" style="color:var(--warn);font-weight:700">' + money(l.valor) + '</span>'
+        + (dinheiro ? '<button class="btn sm ok" data-rec="' + l.id + '">Receber</button><button class="btn sm" data-elan="' + l.id + '">Editar</button>' : '') + '</div>').join("") : '')
+    + '<div class="sec-title" style="margin:12px 0 4px"><h2 style="font-size:13.5px">Últimos lançamentos</h2><div class="line"></div></div>'
+    + (pagos.length ? pagos.slice(0, 10).map(l => '<div class="agitem"><div class="gr"><b>' + esc(l.descricao) + '</b><div class="muted" style="font-size:12.5px">' + fmtD(l.pagoEm || l.data) + ' · ' + esc(l.forma || "—")
+        + ((l.historico || []).length ? ' · <button class="linkish" data-hist="' + l.id + '" style="font-size:12.5px">histórico</button>' : '') + '</div></div>'
+      + '<span class="mono" style="color:' + (l.tipo === "Receita" ? "var(--ok)" : "var(--danger)") + '">' + money(l.valor) + '</span>'
+      + (dinheiro ? '<button class="btn sm ghost" data-elan="' + l.id + '">Editar</button>' : '') + '</div>').join("")
+      : '<div class="muted">Nenhum lançamento pago.</div>') + '</div>';
   const orcs = orcDoCliente(id);
   if (orcs.length) h += '<div class="card"><h3>Orçamentos</h3>'
     + orcs.slice(0, 8).map(o => '<div class="agitem"><div class="gr"><b>' + esc(o.titulo || resumoItens(o)) + '</b>'
@@ -1237,6 +1254,12 @@ function fichaCliente(v, id) {
   $$("[data-orc]", v).forEach(b => b.onclick = () => go("orcamentos/" + b.dataset.orc));
   $("#nag", v).onclick = () => formAgendamento(null, { clienteId: id, petId: (pets[0] || {}).id });
   $$("[data-p]", v).forEach(b => b.onclick = () => go("pets/" + b.dataset.p));
+  const br = $("#receber", v); if (br) br.onclick = () => receberPagamento(id);
+  const ba = $("#ajsaldo", v); if (ba) ba.onclick = () => ajustarSaldo(id);
+  const bw = $("#wcob", v); if (bw) bw.onclick = () => whatsAberto({ clienteId: id, valor: saldoDoTutor(id), descricao: pend.length === 1 ? pend[0].descricao : pend.length + " lançamentos" });
+  $$("[data-rec]", v).forEach(b => b.onclick = () => receberPagamento(id, [b.dataset.rec]));
+  $$("[data-elan]", v).forEach(b => b.onclick = () => formLancamento(b.dataset.elan));
+  $$("[data-hist]", v).forEach(b => b.onclick = () => historicoLancamento(DB.financeiro.find(x => x.id === b.dataset.hist)));
 }
 
 /* ============================ PETS ============================ */
@@ -1963,22 +1986,65 @@ ROUTES.financeiro = function (v) {
         + (l.status === "Pendente" ? '<button class="btn sm ok" data-pg="' + l.id + '">Receber</button> ' : "") + '<button class="btn sm" data-e="' + l.id + '">Editar</button></td></tr>'),
       "Nenhum lançamento neste mês.");
     $$("[data-e]", v).forEach(b => b.onclick = () => formLancamento(b.dataset.e));
-    $$("[data-pg]", v).forEach(b => b.onclick = () => { const l = DB.financeiro.find(x => x.id === b.dataset.pg); l.status = "Pago"; registrar("Pagamento recebido", l.descricao + " · " + money(l.valor)); save(); render(); toast("Pagamento registrado", "ok"); });
+    $$("[data-pg]", v).forEach(b => b.onclick = () => { const l = DB.financeiro.find(x => x.id === b.dataset.pg); receberPagamento(l.clienteId, [l.id]); });
     $$("[data-wc]", v).forEach(b => b.onclick = () => whatsAberto(DB.financeiro.find(x => x.id === b.dataset.wc)));
   };
   v.innerHTML = '<div class="kpis" id="kpis"></div>'
     + barra('<div class="field" style="width:160px"><input type="month" id="mes" value="' + mes + '"></div>'
       + '<div class="row"><button class="chip on" data-t="">Tudo</button><button class="chip" data-t="Receita">Receitas</button><button class="chip" data-t="Despesa">Despesas</button></div>'
       + inputBusca("Buscar lançamento…")
-      + '<div class="spacer"></div><button class="btn pri" id="novo">+ Lançamento</button>')
+      + '<div class="spacer"></div>' + (ehAdmin() ? '<button class="btn dang" id="limpar">Limpar lançamentos</button>' : '')
+      + '<button class="btn pri" id="novo">+ Lançamento</button>')
     + '<div class="dash" style="margin-top:0;grid-template-columns:1fr"><div class="card"><h3>Receitas por forma de pagamento</h3><div id="graf"></div></div></div>'
     + '<div class="sec-title"><h2>Lançamentos</h2><div class="line"></div></div><div id="lista"></div>';
   $("#mes", v).onchange = e => { mes = e.target.value; draw(); };
   $$("[data-t]", v).forEach(b => b.onclick = () => { tipo = b.dataset.t; $$("[data-t]", v).forEach(x => x.classList.toggle("on", x === b)); draw(); });
   $("#q", v).oninput = e => { termo = e.target.value; draw(); };
   $("#novo", v).onclick = () => formLancamento(null);
+  const bl = $("#limpar", v); if (bl) bl.onclick = () => limparFinanceiro();
   draw();
 };
+/* exclusão em lote: apaga lançamentos anteriores a uma data */
+function limparFinanceiro() {
+  if (!ehAdmin()) { toast("Só o administrador pode limpar o financeiro.", "err"); return; }
+  openModal({
+    title: "Limpar lançamentos do financeiro",
+    body: '<div class="hint">Exclui de uma vez as entradas e saídas anteriores à data escolhida. Os lançamentos dessa data em diante ficam.</div>'
+      + '<div class="formgrid">'
+      + '<div class="c6"><div class="field"><label for="ldata">Manter lançamentos a partir de</label><input id="ldata" type="date" value="' + todayISO() + '"></div></div>'
+      + '<div class="c12"><label class="check" style="padding-top:4px"><input type="checkbox" id="lpend"> <span>Manter os valores em aberto das datas anteriores (a receber e a pagar)</span></label></div>'
+      + '</div>'
+      + '<div id="lprev" style="margin-top:12px"></div>'
+      + '<div class="alert warn" style="margin-top:10px"><span>⚠</span><div>Não dá para desfazer. Se quiser uma cópia de segurança, cancele e use <b>Configurações → Backup dos dados</b> antes. '
+      + 'Com a sincronização ligada, a exclusão vale para todos os aparelhos.</div></div>'
+      + '<div class="field" style="margin-top:10px"><label for="lconf">Para confirmar, digite EXCLUIR</label><input id="lconf" autocomplete="off" placeholder="EXCLUIR"></div>',
+    footer: '<button class="btn" data-close>Cancelar</button><button class="btn dang" id="lgo" disabled>Excluir lançamentos</button>',
+    onMount: (o) => {
+      const calc = () => {
+        const corte = $("#ldata", o).value || todayISO(), mantemPend = $("#lpend", o).checked;
+        const sai = DB.financeiro.filter(l => l.data < corte && !(mantemPend && l.status === "Pendente"));
+        const soma = (t) => sai.filter(l => l.tipo === t).reduce((x, l) => x + (Number(l.valor) || 0), 0);
+        const pend = DB.financeiro.filter(l => l.data < corte && l.status === "Pendente");
+        $("#lprev", o).innerHTML = '<div class="kpis">'
+          + kpi("Serão excluídos", sai.length, sai.filter(l => l.tipo === "Receita").length + " entradas · " + sai.filter(l => l.tipo === "Despesa").length + " saídas", sai.length ? "d" : "")
+          + kpi("Ficam", DB.financeiro.length - sai.length, "de " + fmtD(corte) + " em diante" + (mantemPend ? " + em aberto" : ""), "g") + '</div>'
+          + '<div class="hint" style="margin-top:8px">Entradas: ' + money(soma("Receita")) + ' · Saídas: ' + money(soma("Despesa"))
+          + (pend.length ? ' · Entre os anteriores há ' + pend.length + ' valor(es) em aberto (' + money(pend.filter(l => l.tipo === "Receita").reduce((x, l) => x + (Number(l.valor) || 0), 0)) + ' a receber).' : '') + '</div>';
+        return sai;
+      };
+      const libera = () => { $("#lgo", o).disabled = $("#lconf", o).value.trim().toUpperCase() !== "EXCLUIR" || !calc().length; };
+      $("#ldata", o).onchange = libera; $("#lpend", o).onchange = libera; $("#lconf", o).oninput = libera;
+      libera();
+      $("#lgo", o).onclick = () => {
+        const sai = calc(); if (!sai.length) return;
+        const ids = new Set(sai.map(l => l.id));
+        DB.financeiro = DB.financeiro.filter(l => !ids.has(l.id));
+        registrar("Financeiro limpo", sai.length + " lançamento(s) anteriores a " + fmtD($("#ldata", o).value) + " excluídos");
+        save(); closeModal(); render(); toast(sai.length + " lançamento(s) excluídos", "ok");
+      };
+    }
+  });
+}
 function formLancamento(id) {
   const l = id ? DB.financeiro.find(x => x.id === id) : { data: todayISO(), tipo: "Receita", status: "Pago", forma: "Dinheiro" };
   openForm({
@@ -4776,6 +4842,165 @@ function seedOrcamentos(db) {
       itens: [it("V10 (múltipla canina)", 3, "3 doses com intervalo de 21 dias"), it("Antirrábica"), it("Giárdia", 2)], desconto: 30 })
   ];
   db.config.seqOrc = 5;
+}
+</script>
+
+<script>
+/* ==================== SALDO DEVEDOR DO TUTOR ====================
+   Pagamento parcial, pagamento de valor diferente do total,
+   desconto no restante e ajuste direto do saldo em aberto.
+   Cada movimento fica registrado no histórico do lançamento.
+   ================================================================ */
+function pendentesDoTutor(cid) {
+  return DB.financeiro.filter(l => l.clienteId === cid && l.tipo === "Receita" && l.status === "Pendente" && Number(l.valor) > 0)
+    .sort((a, b) => String(a.data).localeCompare(String(b.data)));
+}
+function saldoDoTutor(cid) { return r2(pendentesDoTutor(cid).reduce((s, l) => s + (Number(l.valor) || 0), 0)); }
+const FORMAS_PAGTO = () => FORMAS.filter(f => f !== "Fiado");
+function anotar(l, tipo, valor, extra) {
+  l.historico = l.historico || [];
+  l.historico.push(Object.assign({ quando: nowDT(), tipo, valor: r2(valor), por: nomeUsuario() || "" }, extra || {}));
+}
+/* abate um valor do lançamento em aberto (desconto ou ajuste); se zerar, o lançamento sai */
+function abater(l, v, motivo) {
+  v = Math.min(r2(v), r2(l.valor));
+  if (v <= 0) return 0;
+  l.valor = r2(Number(l.valor) - v);
+  anotar(l, "desconto", v, { motivo: motivo || "" });
+  if (l.valor <= 0.009) DB.financeiro = DB.financeiro.filter(x => x !== l);
+  return v;
+}
+/* distribui o valor recebido do lançamento mais antigo para o mais novo */
+function aplicarPagamento(lista, valor, forma, data, descontoResto, obs) {
+  let resto = r2(valor), quitados = 0, parciais = 0, desconto = 0;
+  lista.slice().sort((a, b) => String(a.data).localeCompare(String(b.data))).forEach(l => {
+    if (resto <= 0.009) return;
+    const v = Math.min(resto, r2(l.valor));
+    if (v >= r2(l.valor) - 0.009) {
+      l.status = "Pago"; l.forma = forma; l.pagoEm = data;
+      anotar(l, "pagamento", v, { forma, data, obs: obs || "" });
+      quitados++;
+    } else {
+      DB.financeiro.push({
+        id: uid(), data, tipo: "Receita", categoria: l.categoria,
+        descricao: String(l.descricao || "").replace(/ \(saldo a receber\)$/, "") + " — pagamento parcial",
+        valor: r2(v), forma, status: "Pago", clienteId: l.clienteId, ref: l.ref, pagamentoDe: l.id
+      });
+      l.valor = r2(l.valor - v);
+      anotar(l, "pagamento parcial", v, { forma, data, obs: obs || "" });
+      parciais++;
+    }
+    resto = r2(resto - v);
+  });
+  if (descontoResto) lista.filter(l => l.status === "Pendente" && DB.financeiro.indexOf(l) >= 0).forEach(l => { desconto += abater(l, l.valor, "desconto no pagamento" + (obs ? " — " + obs : "")); });
+  return { quitados, parciais, desconto: r2(desconto) };
+}
+
+/* ---------- receber (de um lançamento ou de toda a conta do tutor) ---------- */
+function receberPagamento(cid, ids) {
+  if (!podeVerDinheiro()) { toast("Seu perfil não registra pagamentos.", "err"); return; }
+  const lista = ids ? DB.financeiro.filter(l => ids.indexOf(l.id) >= 0 && l.status === "Pendente") : pendentesDoTutor(cid);
+  if (!lista.length) { toast("Não há valores em aberto.", "err"); return; }
+  const total = r2(lista.reduce((s, l) => s + (Number(l.valor) || 0), 0));
+  const c = Q.cliente(cid) || {};
+  openModal({
+    title: "Receber pagamento" + (c.nome ? " · " + c.nome : ""),
+    body: '<div class="sheet" style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;margin-bottom:12px">'
+      + '<span>' + (lista.length > 1 ? lista.length + " lançamentos em aberto" : esc(lista[0].descricao)) + '</span>'
+      + '<b style="font-family:var(--display);font-size:22px">' + money(total) + '</b></div>'
+      + (lista.length > 1 ? '<div class="tablewrap" style="margin-bottom:12px;max-height:180px;overflow:auto"><table>'
+        + lista.map(l => '<tr><td style="white-space:nowrap">' + fmtD(l.data) + '</td><td>' + esc(l.descricao) + '</td><td class="num mono">' + money(l.valor) + '</td></tr>').join("")
+        + '</table></div><div class="hint">O valor recebido quita primeiro os lançamentos mais antigos.</div>' : "")
+      + '<div class="formgrid">'
+      + '<div class="c4"><div class="field"><label for="pval">Valor recebido (R$)</label><input id="pval" type="number" step="0.01" min="0" value="' + total.toFixed(2) + '"></div></div>'
+      + '<div class="c4"><div class="field"><label for="pforma">Forma de pagamento</label><select id="pforma">' + FORMAS_PAGTO().map(f => '<option' + (f === "Pix" ? " selected" : "") + '>' + esc(f) + '</option>').join("") + '</select></div></div>'
+      + '<div class="c4"><div class="field"><label for="pdata">Data</label><input id="pdata" type="date" value="' + todayISO() + '"></div></div>'
+      + '<div class="c12"><div class="field"><label for="pobs">Observação (opcional)</label><input id="pobs" placeholder="Ex.: pagou metade no Pix, o resto no dia 10"></div></div>'
+      + '</div>'
+      + '<div id="presto" style="margin-top:12px"></div>',
+    footer: '<button class="btn" data-close>Cancelar</button><button class="btn ok" id="pok">Registrar pagamento</button>',
+    onMount: (o) => {
+      const atualiza = () => {
+        const v = r2(parseFloat($("#pval", o).value) || 0), dif = r2(total - v);
+        let h = "";
+        if (v <= 0) h = '<div class="alert warn"><span>⚠</span><div>Informe o valor que o tutor pagou.</div></div>';
+        else if (dif < -0.009) h = '<div class="alert dang"><span>✕</span><div>O valor é maior que o saldo em aberto (' + money(total) + '). Para registrar um valor diferente da conta, use <b>Ajustar saldo</b> na ficha do tutor.</div></div>';
+        else if (dif > 0.009) h = '<div class="sheet"><b>Faltam ' + money(dif) + '.</b> O que fazer com o restante?'
+          + '<label class="check" style="padding-top:8px"><input type="radio" name="prest" id="prab" value="aberto" checked> Deixar ' + money(dif) + ' em aberto na conta do tutor</label>'
+          + '<label class="check" style="padding-top:6px"><input type="radio" name="prest" id="prdesc" value="desconto"> Dar ' + money(dif) + ' de desconto e quitar a conta</label></div>';
+        else h = '<div class="alert" style="border-left-color:var(--ok);background:var(--ok-weak)"><span>✓</span><div>Quita todo o saldo em aberto.</div></div>';
+        $("#presto", o).innerHTML = h;
+        $("#pok", o).disabled = v <= 0 || dif < -0.009;
+      };
+      $("#pval", o).oninput = atualiza;
+      atualiza();
+      $("#pok", o).onclick = () => {
+        const v = r2(parseFloat($("#pval", o).value) || 0);
+        if (v <= 0 || v > total + 0.009) return;
+        const desc = !!($("#prdesc", o) && $("#prdesc", o).checked);
+        const forma = $("#pforma", o).value, data = $("#pdata", o).value || todayISO(), obs = $("#pobs", o).value.trim();
+        const r = aplicarPagamento(lista, v, forma, data, desc, obs);
+        const restante = saldoDoTutor(cid);
+        registrar("Pagamento recebido", (c.nome || "—") + " · " + money(v) + " (" + forma + ")" + (r.desconto ? " · desconto " + money(r.desconto) : "") + " · saldo " + money(restante));
+        save(); closeModal(); render();
+        toast("Pagamento de " + money(v) + " registrado" + (restante > 0 ? " · ainda em aberto " + money(restante) : " · conta quitada"), "ok");
+      };
+    }
+  });
+}
+
+/* ---------- ajustar o saldo devedor diretamente ---------- */
+function ajustarSaldo(cid) {
+  if (!podeVerDinheiro()) { toast("Seu perfil não altera valores.", "err"); return; }
+  const atual = saldoDoTutor(cid), c = Q.cliente(cid) || {};
+  openModal({
+    title: "Ajustar saldo devedor" + (c.nome ? " · " + c.nome : ""), size: "narrow",
+    body: '<div class="hint">Use para corrigir o valor que o tutor deve: desconto combinado, renegociação, valor lançado errado ou uma cobrança que faltou.</div>'
+      + '<dl class="kv" style="margin-bottom:12px"><dt>Saldo atual</dt><dd><b class="mono">' + money(atual) + '</b></dd></dl>'
+      + '<div class="field" style="margin-bottom:10px"><label for="anovo">Novo saldo devedor (R$)</label><input id="anovo" type="number" step="0.01" min="0" value="' + atual.toFixed(2) + '"></div>'
+      + '<div class="field" style="margin-bottom:10px"><label for="amot">Motivo</label><input id="amot" placeholder="Ex.: desconto combinado, renegociação, valor lançado errado"></div>'
+      + '<div id="aprev" class="hint"></div>',
+    footer: '<button class="btn" data-close>Cancelar</button><button class="btn pri" id="aok">Salvar novo saldo</button>',
+    onMount: (o) => {
+      const prev = () => {
+        const n = r2(parseFloat($("#anovo", o).value) || 0), d = r2(n - atual);
+        $("#aprev", o).innerHTML = d < -0.009 ? "Reduz " + money(-d) + " do que está em aberto (dos lançamentos mais antigos para os mais novos)."
+          : d > 0.009 ? "Acrescenta um lançamento de " + money(d) + " a receber." : "Sem alteração.";
+        $("#aok", o).disabled = Math.abs(d) <= 0.009;
+      };
+      $("#anovo", o).oninput = prev; prev();
+      $("#aok", o).onclick = () => {
+        const n = Math.max(0, r2(parseFloat($("#anovo", o).value) || 0)), d = r2(n - atual), mot = $("#amot", o).value.trim();
+        if (Math.abs(d) <= 0.009) return;
+        if (d < 0) {
+          let falta = -d;
+          pendentesDoTutor(cid).forEach(l => { if (falta > 0.009) falta = r2(falta - abater(l, falta, "ajuste de saldo" + (mot ? " — " + mot : ""))); });
+        } else {
+          const l = { id: uid(), data: todayISO(), tipo: "Receita", categoria: "Outros", descricao: "Ajuste de saldo" + (mot ? " — " + mot : ""),
+                      valor: d, forma: "Fiado", status: "Pendente", clienteId: cid };
+          anotar(l, "ajuste", d, { motivo: mot });
+          DB.financeiro.push(l);
+        }
+        registrar("Saldo devedor ajustado", (c.nome || "—") + " · de " + money(atual) + " para " + money(n) + (mot ? " · " + mot : ""));
+        save(); closeModal(); render();
+        toast("Saldo de " + (c.nome || "tutor").split(" ")[0] + ": " + money(saldoDoTutor(cid)), "ok");
+      };
+    }
+  });
+}
+
+/* ---------- histórico de um lançamento ---------- */
+function historicoLancamento(l) {
+  const h = (l.historico || []).slice().reverse();
+  const pagos = DB.financeiro.filter(x => x.pagamentoDe === l.id);
+  openModal({
+    title: "Histórico do lançamento", size: "narrow",
+    body: '<div class="sheet" style="margin-bottom:10px"><b>' + esc(l.descricao) + '</b><div class="muted" style="font-size:13px">' + fmtD(l.data) + ' · ' + statusPill(l.status) + ' · em aberto ' + money(l.status === "Pendente" ? l.valor : 0) + '</div></div>'
+      + (h.length ? h.map(x => '<div class="agitem"><div class="gr"><b>' + esc(x.tipo.charAt(0).toUpperCase() + x.tipo.slice(1)) + '</b> <span class="mono">' + money(x.valor) + '</span>'
+        + '<div class="muted" style="font-size:12.5px">' + fmtDT(x.quando) + (x.forma ? " · " + esc(x.forma) : "") + (x.por ? " · " + esc(x.por) : "") + (x.motivo ? " · " + esc(x.motivo) : "") + (x.obs ? " · " + esc(x.obs) : "") + '</div></div></div>').join("")
+        : '<div class="muted">Sem movimentos registrados.</div>')
+      + (pagos.length ? '<div class="hint" style="margin-top:8px">' + pagos.length + ' pagamento(s) parcial(is) lançado(s) no caixa.</div>' : "")
+  });
 }
 </script>
 
