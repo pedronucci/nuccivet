@@ -457,7 +457,7 @@ function emptyDB() {
     },
     clientes: [], pets: [], agenda: [], atendimentos: [], vacinas: [],
     produtos: [], movimentos: [], financeiro: [], internacoes: [],
-    servicos: [], orcamentos: [], documentos: [], modelosDoc: [], usuarios: [], log: [], recuperacao: null
+    servicos: [], orcamentos: [], documentos: [], modelosDoc: [], exames: [], usuarios: [], log: [], recuperacao: null
   };
 }
 function loadDB() {
@@ -1339,6 +1339,9 @@ function formPet(id, defaults) {
       DB.agenda = DB.agenda.filter(a => a.petId !== id);
       DB.atendimentos = DB.atendimentos.filter(a => a.petId !== id);
       DB.vacinas = DB.vacinas.filter(a => a.petId !== id);
+      const exPet = (DB.exames || []).filter(e => e.petId === id);
+      if (exPet.length && Cloud.active()) Arquivos.apagar([].concat(...exPet.map(e => (e.arquivos || []).map(x => x.path)))).catch(() => { });
+      DB.exames = (DB.exames || []).filter(e => e.petId !== id);
       save(); toast("Pet excluído"); go("pets");
     } : null,
     onSave: (d) => {
@@ -1356,12 +1359,14 @@ function fichaPet(v, id) {
   const bt = DB.agenda.filter(a => a.petId === id && isBT(a.tipo)).sort((a, b) => b.data.localeCompare(a.data));
   let h = '<div class="row noprint" style="margin-bottom:14px"><button class="btn" id="volta">‹ Pets</button><div class="spacer"></div>'
     + '<button class="btn" id="edit">Editar</button><button class="btn" id="nvac">+ Vacina</button>'
-    + '<button class="btn" id="nag">+ Agendar</button><button class="btn" id="norc">+ Orçamento</button><button class="btn" id="ndoc">+ Documento</button><button class="btn" id="nint">+ Internar</button>'
+    + '<button class="btn" id="nag">+ Agendar</button><button class="btn" id="norc">+ Orçamento</button><button class="btn" id="ndoc">+ Documento</button><button class="btn" id="nexame2">+ Exame</button><button class="btn" id="nint">+ Internar</button>'
     + '<button class="btn pri" id="natend">+ Atendimento</button>'
     + '<button class="btn" id="imprimir">Imprimir ficha</button></div>';
   h += '<div class="dash" style="margin-top:0"><div class="grid">';
-  h += '<div class="card"><h3>Prontuário</h3><div class="hint">' + atend.length + ' atendimento(s) registrado(s).</div>';
-  h += atend.length ? '<div class="timeline">' + atend.map(a => '<div class="tl"><div class="row" style="justify-content:space-between"><b>' + fmtD(a.data) + ' — ' + esc(a.tipo || "Consulta") + '</b><span class="muted" style="font-size:12.5px">' + esc(a.profissional || "") + '</span></div>'
+  const exs = examesDoPet(id);
+  const itensTL = atend.map(a => ({ data: a.data, a })).concat(exs.map(e => ({ data: e.data, e }))).sort((x, y) => String(y.data).localeCompare(String(x.data)));
+  h += '<div class="card"><h3>Prontuário</h3><div class="hint">' + atend.length + ' atendimento(s) registrado(s)' + (exs.length ? ' · ' + exs.length + ' exame(s) anexado(s)' : '') + '.</div>';
+  h += itensTL.length ? '<div class="timeline">' + itensTL.map(x => x.e ? exameTL(x.e) : (a => '<div class="tl"><div class="row" style="justify-content:space-between"><b>' + fmtD(a.data) + ' — ' + esc(a.tipo || "Consulta") + '</b><span class="muted" style="font-size:12.5px">' + esc(a.profissional || "") + '</span></div>'
     + '<div style="font-size:13.5px">' + (a.peso ? '<span class="pill">' + a.peso + ' kg</span> ' : "") + (a.temperatura ? '<span class="pill">' + a.temperatura + ' °C</span> ' : "") + (a.diagnostico ? '<span class="pill brand">' + esc(a.diagnostico) + '</span>' : "") + '</div>'
     + (a.anamnese ? '<div class="muted pre curto" style="font-size:13.5px;margin-top:3px">' + esc(a.anamnese) + '</div>' : "")
     + (a.exame && !ehAtendimento(a) ? '<div class="pre" style="font-size:13px;margin-top:4px">' + esc(a.exame) + '</div>' : "")
@@ -1369,7 +1374,7 @@ function fichaPet(v, id) {
     + (a.link ? '<a class="btn sm" href="' + esc(a.link) + '" target="_blank" rel="noopener" style="margin-top:6px">Abrir arquivo</a>' : "")
     + '<div class="row noprint" style="margin-top:5px"><button class="btn sm ghost" data-at="' + a.id + '">Abrir</button>'
     + (a.prescricao ? '<button class="btn sm ghost" data-wr="' + a.id + '" style="color:var(--accent)">Enviar receita</button>' : "")
-    + (a.assinatura && a.assinatura !== "Não assinada" ? '<span class="pill ok">' + esc(a.assinatura) + '</span>' : "") + '</div></div>').join("") + '</div>'
+    + (a.assinatura && a.assinatura !== "Não assinada" ? '<span class="pill ok">' + esc(a.assinatura) + '</span>' : "") + '</div></div>')(x.a)).join("") + '</div>'
     : '<div class="muted">Nenhum atendimento registrado.</div>';
   h += '</div>';
   h += '<div class="card"><h3>Carteira de vacinação</h3>'
@@ -1402,6 +1407,7 @@ function fichaPet(v, id) {
       + '<span class="pill ' + (x.status === "Internado" ? "warn" : x.status === "Alta" ? "ok" : "dang") + '">' + esc(x.status) + '</span>'
       + '<button class="btn sm" data-i="' + x.id + '">Abrir</button></div>').join("") + '</div>';
   h += '</div><div class="grid">';
+  h += cardExames(id);
   h += '<div class="card"><h3>Dados do animal</h3><dl class="kv">'
     + '<dt>Tutor</dt><dd><button class="linkish" id="vertutor">' + esc(Q.nomeCliente(p.clienteId)) + '</button></dd>'
     + '<dt>Espécie</dt><dd>' + esc(p.especie || "—") + '</dd>'
@@ -1424,6 +1430,8 @@ function fichaPet(v, id) {
   $("#nint", v).onclick = () => formInternacao(null, { petId: id, clienteId: p.clienteId });
   $("#norc", v).onclick = () => novoOrcamento({ petId: id, clienteId: p.clienteId });
   $("#ndoc", v).onclick = () => novoDocumento({ petId: id, clienteId: p.clienteId });
+  ligarExames(v, id);
+  $("#nexame2", v).onclick = () => anexarExame({ petId: id });
   $$("[data-doc]", v).forEach(b => b.onclick = () => go("documentos/" + b.dataset.doc));
   $$("[data-dpdf]", v).forEach(b => b.onclick = () => imprimirDocumento(DB.documentos.find(x => x.id === b.dataset.dpdf)));
   $$("[data-orc]", v).forEach(b => b.onclick = () => go("orcamentos/" + b.dataset.orc));
@@ -1610,7 +1618,7 @@ function formAtendimento(id, defaults) {
     values: a,
     extra: id ? '<div class="row noprint" style="margin-top:12px"><button type="button" class="btn sm" id="imp">Imprimir / gerar PDF</button>'
       + '<button type="button" class="btn sm ok" id="wpp">Enviar pelo WhatsApp</button>'
-      + '<button type="button" class="btn sm" id="encam">Carta de encaminhamento</button><button type="button" class="btn sm" id="outdoc">Outro documento</button>'
+      + '<button type="button" class="btn sm" id="anexex">Anexar exame</button><button type="button" class="btn sm" id="encam">Carta de encaminhamento</button><button type="button" class="btn sm" id="outdoc">Outro documento</button>'
       + '<span class="muted" style="font-size:12px">Gere o PDF, assine no gov.br e volte aqui para registrar o link.</span></div>' : "",
     fields: [
       { k: "petId", label: "Pet", type: "select", col: "c6", options: selPets, required: true },
@@ -1636,6 +1644,7 @@ function formAtendimento(id, defaults) {
     onMount: (o) => {
       const i = $("#imp", o);
       if (i) i.onclick = () => imprimirPrescricao(a);
+      const ax = $("#anexex", o); if (ax) ax.onclick = () => { closeModal(); anexarExame({ petId: a.petId, atendimentoId: a.id }); };
       const en = $("#encam", o); if (en) en.onclick = () => { closeModal(); novoDocumento({ modeloId: "enc_detalhada", petId: a.petId, clienteId: a.clienteId, atendimentoId: a.id }); };
       const od = $("#outdoc", o); if (od) od.onclick = () => { closeModal(); novoDocumento({ petId: a.petId, clienteId: a.clienteId, atendimentoId: a.id }); };
       const w = $("#wpp", o);
@@ -2192,6 +2201,7 @@ ROUTES.config = function (v) {
     + '<div class="codebox">create table if not exists nuccivet (\n  id text primary key,\n  payload jsonb not null,\n  updated_at timestamptz not null default now()\n);\nalter table nuccivet enable row level security;\ncreate policy "acesso" on nuccivet\n  for all using (true) with check (true);</div>'
     + '<div class="alert warn" style="margin-top:10px"><span>⚠</span><div>Quem tiver a chave e o endereço acessa os dados. Use apenas em equipamentos da clínica e troque a chave se alguém sair da equipe.</div></div>'
     + '</div>';
+  h += cardConfigExames();
   h += '</div><div class="grid">';
   h += '<div class="card"><h3>Equipe e acessos</h3>'
     + '<div class="hint">' + (DB.usuarios.length
@@ -2252,6 +2262,7 @@ ROUTES.config = function (v) {
     c.diariaPadrao = parseFloat($("#cdia", v).value) || 0;
     save(); toast("Dados da clínica salvos", "ok");
   };
+  ligarConfigExames(v);
   $("#salvarorc", v).onclick = () => {
     c.validadeOrc = Math.max(1, parseInt($("#cfgoval", v).value, 10) || 15);
     c.condicoesOrc = $("#cfgocond", v).value.trim(); c.termosOrc = $("#cfgoterm", v).value.trim();
@@ -5577,6 +5588,289 @@ function imprimirDocumento(d) {
     + '</div></body></html>';
   w.document.write(html); w.document.close(); w.focus();
   setTimeout(() => { try { w.print(); } catch (e) { } }, 700);
+}
+</script>
+
+<script>
+/* ======================== EXAMES (anexos em PDF / foto) ========================
+   Os arquivos ficam no Storage do Supabase (bucket "exames"), fora da base de
+   dados — assim a sincronização continua leve. A base guarda só a ficha do
+   exame (tipo, data, laboratório) e o caminho de cada arquivo.
+   ============================================================================ */
+const TIPOS_EXAME = ["Hemograma", "Bioquímico", "Urinálise", "Parasitológico de fezes", "Teste rápido (FIV/FeLV, cinomose, parvo…)", "Raio-X", "Ultrassonografia", "Eletrocardiograma / ecocardiograma", "Citologia", "Histopatológico", "Cultura e antibiograma", "Laudo de outro profissional", "Outros"];
+const LIMITE_GRATIS = 1024 * 1024 * 1024;        /* 1 GB do plano gratuito do Supabase */
+const LIMITE_ARQUIVO = 50 * 1024 * 1024;         /* 50 MB por arquivo no plano gratuito */
+const fmtTam = (b) => { b = Number(b) || 0; if (!b) return "0 KB"; return b < 1024 * 1024 ? Math.max(1, Math.round(b / 1024)) + " KB" : (b / 1024 / 1024).toFixed(b < 10 * 1024 * 1024 ? 1 : 0).replace(".", ",") + " MB"; };
+function examesDoPet(pid) { return (DB.exames || []).filter(e => e.petId === pid).sort((a, b) => String(b.data).localeCompare(String(a.data))); }
+function usoExames() { return (DB.exames || []).reduce((s, e) => s + (e.arquivos || []).reduce((x, a) => x + (Number(a.tamanho) || 0), 0), 0); }
+
+const SQL_EXAMES = "insert into storage.buckets (id, name, public, file_size_limit)\nvalues ('exames', 'exames', false, 52428800)\non conflict (id) do nothing;\n\n"
+  + "create policy \"exames ler\" on storage.objects\n  for select using (bucket_id = 'exames');\n"
+  + "create policy \"exames enviar\" on storage.objects\n  for insert with check (bucket_id = 'exames');\n"
+  + "create policy \"exames atualizar\" on storage.objects\n  for update using (bucket_id = 'exames');\n"
+  + "create policy \"exames apagar\" on storage.objects\n  for delete using (bucket_id = 'exames');";
+
+/* ---------- comunicação com o Storage ---------- */
+const Arquivos = {
+  bucket: "exames",
+  base() { return String(Cloud.cfg.url || "").trim().replace(/\/+$/, "").replace(/\/rest\/v1$/i, "") + "/storage/v1"; },
+  hdr() { return { apikey: Cloud.cfg.key, Authorization: "Bearer " + Cloud.cfg.key }; },
+  caminho(p) { return p.split("/").map(encodeURIComponent).join("/"); },
+  erro(status, txt) {
+    let m = ""; try { const j = JSON.parse(txt); m = j.message || j.error || ""; } catch (e) { m = txt || ""; }
+    if (/bucket not found/i.test(m) || status === 404) return "O espaço de exames ainda não foi criado no Supabase. Veja Configurações → Exames anexados.";
+    if (/row-level security|unauthorized|not allowed|403/i.test(m) || status === 403 || status === 401) return "O Supabase recusou o arquivo: faltam as permissões do espaço de exames. Veja Configurações → Exames anexados.";
+    if (/payload too large|maximum allowed size|exceeded/i.test(m) || status === 413) return "Arquivo maior que o limite permitido (50 MB).";
+    return "Falha ao enviar (" + status + (m ? " — " + m : "") + ").";
+  },
+  enviar(path, blob, mime, progresso) {
+    return new Promise((ok, falha) => {
+      const x = new XMLHttpRequest();
+      x.open("POST", this.base() + "/object/" + this.bucket + "/" + this.caminho(path));
+      const h = this.hdr(); Object.keys(h).forEach(k => x.setRequestHeader(k, h[k]));
+      x.setRequestHeader("Content-Type", mime || "application/octet-stream");
+      x.setRequestHeader("x-upsert", "true");
+      x.setRequestHeader("cache-control", "3600");
+      if (progresso) x.upload.onprogress = (e) => { if (e.lengthComputable) progresso(e.loaded / e.total); };
+      x.onload = () => (x.status >= 200 && x.status < 300) ? ok() : falha(new Error(this.erro(x.status, x.responseText)));
+      x.onerror = () => falha(new Error(navigator.onLine === false ? "Sem internet no momento." : "Não consegui falar com o Supabase."));
+      x.send(blob);
+    });
+  },
+  async link(path, nomeDownload) {
+    const r = await fetch(this.base() + "/object/sign/" + this.bucket + "/" + this.caminho(path), {
+      method: "POST", headers: Object.assign(this.hdr(), { "Content-Type": "application/json" }), body: JSON.stringify({ expiresIn: 3600 })
+    });
+    const txt = await r.text();
+    if (!r.ok) throw new Error(this.erro(r.status, txt));
+    const j = JSON.parse(txt), rel = j.signedURL || j.signedUrl || "";
+    const url = /^https?:/.test(rel) ? rel : this.base() + (rel.charAt(0) === "/" ? "" : "/") + rel;
+    return nomeDownload ? url + (url.indexOf("?") >= 0 ? "&" : "?") + "download=" + encodeURIComponent(nomeDownload) : url;
+  },
+  async apagar(paths) {
+    if (!paths.length) return;
+    const r = await fetch(this.base() + "/object/" + this.bucket, {
+      method: "DELETE", headers: Object.assign(this.hdr(), { "Content-Type": "application/json" }), body: JSON.stringify({ prefixes: paths })
+    });
+    if (!r.ok) throw new Error(this.erro(r.status, await r.text()));
+  }
+};
+
+/* fotos grandes do celular são reduzidas antes de enviar (PDF vai como está) */
+function reduzirImagem(file) {
+  return new Promise((ok) => {
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size < 700 * 1024) { ok(file); return; }
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      const max = 2200, esc_ = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const cv = document.createElement("canvas");
+      cv.width = Math.round(img.naturalWidth * esc_); cv.height = Math.round(img.naturalHeight * esc_);
+      cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+      URL.revokeObjectURL(url);
+      cv.toBlob(b => ok(b && b.size < file.size ? Object.assign(b, { _nome: file.name.replace(/\.\w+$/, "") + ".jpg" }) : file), "image/jpeg", 0.82);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); ok(file); };
+    img.src = url;
+  });
+}
+const nomeSeguro = (s) => slug(String(s || "arquivo").replace(/\.[^.]+$/, "")).replace(/\s+/g, "-").slice(0, 60) || "arquivo";
+const extensao = (f) => { const m = String(f.name || "").match(/\.(\w{2,5})$/); return m ? m[1].toLowerCase() : (/pdf/.test(f.type) ? "pdf" : /png/.test(f.type) ? "png" : "jpg"); };
+
+/* ---------- abrir / baixar ---------- */
+async function abrirArquivo(arq, baixar) {
+  if (!Cloud.active()) { toast("Conecte a sincronização em nuvem para abrir exames.", "err"); return; }
+  const w = baixar ? null : window.open("", "_blank");   /* abre já no clique, senão o navegador bloqueia */
+  if (w) { try { w.document.write('<p style="font-family:sans-serif;color:#5C3A7B;padding:24px">Abrindo exame…</p>'); } catch (e) { } }
+  try {
+    const url = await Arquivos.link(arq.path, baixar ? arq.nome : "");
+    if (w) w.location.href = url;
+    else if (baixar) { const a = document.createElement("a"); a.href = url; a.target = "_blank"; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove(); }
+    else openModal({ title: "Abrir exame", size: "narrow", body: '<p style="margin:0 0 10px">O navegador bloqueou a nova janela.</p><a class="btn pri" href="' + esc(url) + '" target="_blank" rel="noopener">Abrir ' + esc(arq.nome) + '</a>' });
+  } catch (e) { if (w) w.close(); toast(e.message, "err"); }
+}
+
+/* ---------- anexar / editar ---------- */
+function anexarExame(def) {
+  def = def || {};
+  if (!Cloud.active()) {
+    openModal({
+      title: "Anexar exame", size: "narrow",
+      body: '<p style="margin:0 0 8px">Os exames ficam guardados no Supabase, o mesmo serviço que sincroniza os dados.</p><p class="muted" style="margin:0">Ligue a sincronização em nuvem em Configurações para anexar arquivos.</p>',
+      footer: '<button class="btn" data-close>Fechar</button><button class="btn pri" id="ircfg">Ir para Configurações</button>',
+      onMount: (o) => { $("#ircfg", o).onclick = () => { closeModal(); go("config"); }; }
+    });
+    return;
+  }
+  const ex = def.id ? (DB.exames || []).find(e => e.id === def.id) : null;
+  const e = ex ? JSON.parse(JSON.stringify(ex)) : { petId: def.petId || "", atendimentoId: def.atendimentoId || "", tipo: def.tipo || TIPOS_EXAME[0], titulo: "", data: todayISO(), laboratorio: "", obs: "", arquivos: [] };
+  const labs = Array.from(new Set((DB.exames || []).map(x => x.laboratorio).filter(Boolean))).sort();
+  let novos = [];           /* arquivos escolhidos ainda não enviados */
+  const removidos = [];     /* arquivos existentes marcados para apagar */
+  const uso = usoExames();
+  const body = '<div class="formgrid">'
+    + '<div class="c6"><div class="field"><label for="xpet">Pet <span style="color:var(--danger)">*</span></label><select id="xpet"><option value="">Selecione</option>' + selPets().map(p => '<option value="' + p.v + '"' + (p.v === e.petId ? " selected" : "") + '>' + esc(p.t) + '</option>').join("") + '</select></div></div>'
+    + '<div class="c6"><div class="field"><label for="xtipo">Tipo de exame</label><select id="xtipo">' + TIPOS_EXAME.map(t => '<option' + (t === e.tipo ? " selected" : "") + '>' + esc(t) + '</option>').join("") + '</select></div></div>'
+    + '<div class="c8"><div class="field"><label for="xtit">Descrição (opcional)</label><input id="xtit" value="' + esc(e.titulo || "") + '" placeholder="Ex.: hemograma + perfil renal, controle pós-tratamento"></div></div>'
+    + '<div class="c4"><div class="field"><label for="xdata">Data do exame</label><input id="xdata" type="date" value="' + esc(e.data) + '"></div></div>'
+    + '<div class="c6"><div class="field"><label for="xlab">Laboratório / clínica</label><input id="xlab" list="xlabs" value="' + esc(e.laboratorio || "") + '" placeholder="Ex.: laboratório parceiro"><datalist id="xlabs">' + labs.map(l => '<option value="' + esc(l) + '">').join("") + '</datalist></div></div>'
+    + '<div class="c6"><div class="field"><label for="xobs">Observação</label><input id="xobs" value="' + esc(e.obs || "") + '" placeholder="Ex.: creatinina alterada, repetir em 30 dias"></div></div>'
+    + '</div>'
+    + '<div class="sec-title" style="margin:14px 0 8px"><h2 style="font-size:14px">Arquivos</h2><div class="line"></div></div>'
+    + '<div class="row" style="gap:8px"><label class="btn" for="xarq">Escolher PDF ou imagem</label><input id="xarq" type="file" accept="application/pdf,image/*" multiple hidden>'
+    + '<label class="btn" for="xfoto">Tirar foto</label><input id="xfoto" type="file" accept="image/*" capture="environment" hidden>'
+    + '<span class="muted" style="font-size:12.5px">Pode juntar várias páginas no mesmo exame.</span></div>'
+    + '<div id="xlista" style="margin-top:10px"></div>'
+    + '<div class="hint" style="margin-top:8px">Espaço usado: ' + fmtTam(uso) + ' de 1 GB (plano gratuito do Supabase). Fotos grandes são reduzidas automaticamente.</div>';
+  openModal({
+    title: ex ? "Exame · " + (ex.titulo || ex.tipo) : "Anexar exame", size: "wide", body,
+    footer: (ex ? '<button class="btn dang" id="xdel" style="margin-right:auto">Excluir exame</button>' : "")
+      + '<button class="btn" data-close>Cancelar</button><button class="btn pri" id="xok">' + (ex ? "Salvar" : "Anexar") + '</button>',
+    onMount: (o) => {
+      const lista = () => {
+        const itens = e.arquivos.filter(a => removidos.indexOf(a.path) < 0).map(a => ({ a, novo: false })).concat(novos.map(f => ({ f, novo: true })));
+        $("#xlista", o).innerHTML = itens.length ? itens.map((it, i) => {
+          const nome = it.novo ? it.f.name : it.a.nome, tam = it.novo ? it.f.size : it.a.tamanho, tipo = it.novo ? it.f.type : it.a.mime;
+          return '<div class="agitem"><span class="avatar">' + (/pdf/.test(tipo) ? "📄" : "🖼️") + '</span><div class="gr"><b style="word-break:break-all">' + esc(nome) + '</b>'
+            + '<div class="muted" style="font-size:12.5px">' + fmtTam(tam) + (it.novo ? (tam > LIMITE_ARQUIVO ? ' · <span style="color:var(--danger)">acima de 50 MB</span>' : ' · a enviar') : " · enviado") + '</div>'
+            + '<div class="bar" data-prog="' + i + '" style="height:5px;margin-top:4px" hidden><i style="width:0"></i></div></div>'
+            + (it.novo ? "" : '<button class="btn sm" data-ver="' + esc(it.a.path) + '">Abrir</button>')
+            + '<button class="btn sm ghost" data-tirar="' + i + '" aria-label="Remover arquivo">✕</button></div>';
+        }).join("") : '<div class="muted" style="font-size:13.5px">Nenhum arquivo escolhido.</div>';
+        $$("[data-ver]", o).forEach(b => b.onclick = () => abrirArquivo(e.arquivos.find(a => a.path === b.dataset.ver)));
+        $$("[data-tirar]", o).forEach(b => b.onclick = () => {
+          const it = itens[+b.dataset.tirar];
+          if (it.novo) novos = novos.filter(f => f !== it.f); else removidos.push(it.a.path);
+          lista();
+        });
+        return itens;
+      };
+      const pegar = (inp) => { novos = novos.concat(Array.from(inp.files || [])); inp.value = ""; lista(); };
+      $("#xarq", o).onchange = (ev) => pegar(ev.target);
+      $("#xfoto", o).onchange = (ev) => pegar(ev.target);
+      lista();
+      const bdel = $("#xdel", o);
+      if (bdel) bdel.onclick = () => { closeModal(); confirmar("Excluir este exame e seus arquivos? Não dá para desfazer.", () => excluirExame(ex.id)); };
+      $("#xok", o).onclick = async () => {
+        const pet = Q.pet($("#xpet", o).value);
+        if (!pet) { toast("Escolha o pet.", "err"); return; }
+        const restantes = e.arquivos.filter(a => removidos.indexOf(a.path) < 0);
+        if (!restantes.length && !novos.length) { toast("Escolha ao menos um arquivo.", "err"); return; }
+        if (novos.some(f => f.size > LIMITE_ARQUIVO * 1.2)) { toast("Há arquivo acima de 50 MB. Remova-o ou reduza antes.", "err"); return; }
+        const btn = $("#xok", o); btn.disabled = true; btn.textContent = "Enviando…";
+        const id = ex ? ex.id : uid(), enviados = [];
+        try {
+          for (let i = 0; i < novos.length; i++) {
+            const f0 = novos[i], f = await reduzirImagem(f0);
+            const nome = f._nome || f0.name || ("foto-" + (i + 1) + ".jpg");
+            const ext = f._nome ? "jpg" : extensao(f0), mime = f.type || f0.type || "application/octet-stream";
+            const path = (Cloud.registro ? Cloud.registro() : "principal") + "/" + pet.id + "/" + id + "-" + uid().slice(-5) + "-" + nomeSeguro(nome) + "." + ext;
+            const barra = $('[data-prog="' + (restantes.length + i) + '"]', o);
+            if (barra) barra.hidden = false;
+            await Arquivos.enviar(path, f, mime, (p) => { if (barra) barra.firstChild.style.width = Math.round(p * 100) + "%"; });
+            enviados.push({ path, nome, mime, tamanho: f.size, enviadoEm: nowDT() });
+          }
+        } catch (err) {
+          btn.disabled = false; btn.textContent = ex ? "Salvar" : "Anexar";
+          Arquivos.apagar(enviados.map(a => a.path)).catch(() => { });
+          toast(err.message, "err");
+          return;
+        }
+        const dados = {
+          id, petId: pet.id, clienteId: pet.clienteId, atendimentoId: e.atendimentoId || "",
+          tipo: $("#xtipo", o).value, titulo: $("#xtit", o).value.trim(), data: $("#xdata", o).value || todayISO(),
+          laboratorio: $("#xlab", o).value.trim(), obs: $("#xobs", o).value.trim(), arquivos: restantes.concat(enviados)
+        };
+        DB.exames = DB.exames || [];
+        if (ex) Object.assign(ex, dados);
+        else { dados.criadoEm = nowDT(); dados.criadoPor = nomeUsuario(); DB.exames.push(dados); }
+        if (removidos.length) Arquivos.apagar(removidos).catch(() => toast("Os arquivos removidos não puderam ser apagados do Supabase agora.", "err"));
+        registrar(ex ? "Exame alterado" : "Exame anexado", pet.nome + " · " + dados.tipo + " · " + dados.arquivos.length + " arquivo(s)");
+        save(); closeModal(); render();
+        toast(ex ? "Exame atualizado" : "Exame anexado ao prontuário de " + pet.nome, "ok");
+      };
+    }
+  });
+}
+async function excluirExame(id) {
+  const ex = (DB.exames || []).find(e => e.id === id);
+  if (!ex) return;
+  try { await Arquivos.apagar((ex.arquivos || []).map(a => a.path)); }
+  catch (e) { toast("Não consegui apagar os arquivos no Supabase agora: " + e.message, "err"); return; }
+  DB.exames = DB.exames.filter(e => e.id !== id);
+  registrar("Exame excluído", Q.nomePet(ex.petId) + " · " + ex.tipo);
+  save(); render(); toast("Exame excluído");
+}
+
+/* ---------- pedaços de tela usados na ficha do pet ---------- */
+function cardExames(pid) {
+  const xs = examesDoPet(pid);
+  return '<div class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Exames</h3><button class="btn sm" id="nexame">+ Anexar</button></div>'
+    + '<div class="hint" style="margin-top:2px">' + (xs.length ? xs.length + " exame(s) anexado(s)." : "PDFs e fotos de exames ficam guardados aqui.") + '</div>'
+    + (xs.length ? xs.map(e => '<div class="agitem"><span class="avatar">' + ((e.arquivos || []).some(a => /pdf/.test(a.mime)) ? "📄" : "🖼️") + '</span>'
+      + '<div class="gr"><b>' + esc(e.titulo || e.tipo) + '</b><div class="muted" style="font-size:12.5px">' + fmtD(e.data) + (e.titulo ? " · " + esc(e.tipo) : "")
+      + (e.laboratorio ? " · " + esc(e.laboratorio) : "") + " · " + (e.arquivos || []).length + " arquivo(s)" + '</div>'
+      + (e.obs ? '<div style="font-size:12.5px">' + esc(e.obs) + '</div>' : "") + '</div>'
+      + '<button class="btn sm pri" data-xab="' + e.id + '">Abrir</button><button class="btn sm ghost" data-xed="' + e.id + '">Editar</button></div>').join("")
+      : '<div class="empty" style="padding:14px"><span class="big">📎</span>Nenhum exame anexado.</div>') + '</div>';
+}
+function exameTL(e) {
+  return '<div class="tl"><div class="row" style="justify-content:space-between"><b>' + fmtD(e.data) + ' — 📎 Exame: ' + esc(e.titulo || e.tipo) + '</b><span class="muted" style="font-size:12.5px">' + esc(e.laboratorio || "") + '</span></div>'
+    + (e.obs ? '<div style="font-size:13.5px">' + esc(e.obs) + '</div>' : "")
+    + '<div class="row noprint" style="margin-top:5px"><button class="btn sm ghost" data-xab="' + e.id + '" style="color:var(--brand)">Abrir exame (' + (e.arquivos || []).length + ')</button></div></div>';
+}
+/* abre o exame: com um arquivo vai direto, com vários mostra a lista */
+function abrirExame(id) {
+  const e = (DB.exames || []).find(x => x.id === id);
+  if (!e) return;
+  const arqs = e.arquivos || [];
+  if (arqs.length === 1) { abrirArquivo(arqs[0]); return; }
+  openModal({
+    title: (e.titulo || e.tipo) + " · " + fmtD(e.data), size: "narrow",
+    body: arqs.map((a, i) => '<div class="agitem"><span class="avatar">' + (/pdf/.test(a.mime) ? "📄" : "🖼️") + '</span><div class="gr"><b style="word-break:break-all">' + esc(a.nome) + '</b><div class="muted" style="font-size:12.5px">' + fmtTam(a.tamanho) + '</div></div>'
+      + '<button class="btn sm pri" data-a="' + i + '">Abrir</button><button class="btn sm" data-b="' + i + '">Baixar</button></div>').join(""),
+    onMount: (o) => {
+      $$("[data-a]", o).forEach(b => b.onclick = () => abrirArquivo(arqs[+b.dataset.a]));
+      $$("[data-b]", o).forEach(b => b.onclick = () => abrirArquivo(arqs[+b.dataset.b], true));
+    }
+  });
+}
+function ligarExames(v, pid, def) {
+  const n = $("#nexame", v); if (n) n.onclick = () => anexarExame(Object.assign({ petId: pid }, def || {}));
+  $$("[data-xab]", v).forEach(b => b.onclick = () => abrirExame(b.dataset.xab));
+  $$("[data-xed]", v).forEach(b => b.onclick = () => anexarExame({ id: b.dataset.xed }));
+}
+
+/* ---------- Configurações: espaço usado e preparo do Supabase ---------- */
+function cardConfigExames() {
+  const uso = usoExames(), pct = Math.min(100, uso / LIMITE_GRATIS * 100), n = (DB.exames || []).reduce((s, e) => s + (e.arquivos || []).length, 0);
+  return '<div class="card"><h3>Exames anexados</h3><div class="hint">PDFs e fotos de exames ficam no Storage do Supabase, fora da base de dados.</div>'
+    + '<div class="row" style="justify-content:space-between;font-size:13.5px"><span>' + n + ' arquivo(s) · ' + fmtTam(uso) + ' de 1 GB</span><b class="mono">' + pct.toFixed(pct < 10 ? 1 : 0).replace(".", ",") + '%</b></div>'
+    + '<div class="bar" style="margin:6px 0 10px"><i style="width:' + Math.max(pct, .5) + '%;background:' + (pct > 85 ? "var(--danger)" : pct > 65 ? "var(--warn)" : "var(--brand)") + '"></i></div>'
+    + (pct > 85 ? '<div class="alert warn"><span>⚠</span><div>O espaço gratuito está quase cheio. Dá para apagar exames antigos ou passar o Supabase para o plano Pro.</div></div>' : "")
+    + '<div class="hint">Preparo, uma única vez: no Supabase, abra <b>SQL Editor</b>, cole o comando abaixo e clique em <b>Run</b>.</div>'
+    + '<div class="codebox" id="sqlex">' + esc(SQL_EXAMES) + '</div>'
+    + '<div class="row" style="margin-top:10px"><button class="btn" id="copsql">Copiar comando</button><button class="btn pri" id="testex"' + (Cloud.active() ? "" : " disabled") + '>Testar envio de arquivos</button></div>'
+    + (Cloud.active() ? "" : '<div class="hint" style="margin-top:8px">Conecte a sincronização em nuvem acima para usar os anexos.</div>') + '</div>';
+}
+function ligarConfigExames(v) {
+  const c = $("#copsql", v);
+  if (c) c.onclick = () => {
+    const t = SQL_EXAMES;
+    if (navigator.clipboard) navigator.clipboard.writeText(t).then(() => toast("Comando copiado", "ok"), () => toast("Selecione e copie o texto do quadro", ""));
+    else toast("Selecione e copie o texto do quadro", "");
+  };
+  const t = $("#testex", v);
+  if (t) t.onclick = async () => {
+    t.disabled = true; t.textContent = "Testando…";
+    const path = (Cloud.registro ? Cloud.registro() : "principal") + "/_teste/teste-" + uid() + ".txt";
+    try {
+      await Arquivos.enviar(path, new Blob(["teste Nuccivet"], { type: "text/plain" }), "text/plain");
+      await Arquivos.link(path);
+      await Arquivos.apagar([path]);
+      toast("Tudo certo: o envio de exames está funcionando.", "ok");
+    } catch (e) { toast(e.message, "err"); }
+    t.disabled = false; t.textContent = "Testar envio de arquivos";
+  };
 }
 </script>
 
