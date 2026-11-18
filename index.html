@@ -2159,9 +2159,99 @@ function evHTML(a) {
   return '<div class="ev ' + kind + ' ' + cls + '" data-ev="' + a.id + '" title="' + esc(a.tipo + " · " + a.status) + '">'
     + '<b>' + esc(a.hora) + ' ' + esc(rotuloAg(a)) + '</b>' + esc(a.tipo) + '</div>';
 }
+/* ---------- repetição de agendamentos: datas explícitas, sem cobranças ---------- */
+const LIMITE_REPETICOES_AGENDA = 366;
+function datasRepeticaoAgenda(inicio, intervalo, fim) {
+  const valida = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || "")) && dISO(parseISO(s)) === s;
+  if (!valida(inicio)) return { erro: "Informe uma data inicial válida." };
+  if (!Number.isInteger(intervalo) || intervalo < 1 || intervalo > 3650) return { erro: "O intervalo deve ser um número inteiro entre 1 e 3650 dias." };
+  if (!valida(fim) || fim < inicio) return { erro: "Informe uma data final igual ou posterior à data inicial." };
+  const datas = [];
+  for (let data = inicio; data <= fim; data = addDays(data, intervalo)) {
+    if (datas.length === LIMITE_REPETICOES_AGENDA) return { erro: "A repetição ultrapassa 366 agendamentos. Reduza a data final ou aumente o intervalo." };
+    datas.push(data);
+  }
+  if (datas.length < 2) return { erro: "A data final deve incluir pelo menos mais uma repetição após o primeiro agendamento." };
+  return { datas: datas };
+}
+function resumoRepeticaoAgenda(a) {
+  return a && a.recorrenciaId ? "A cada " + a.recorrenciaIntervaloDias + " dia(s), até " + fmtD(a.recorrenciaAte) : "";
+}
+function planejarRepeticaoAgenda(dados, intervalo, fim, raizId) {
+  const plano = datasRepeticaoAgenda(dados.data, intervalo, fim);
+  if (plano.erro) return plano;
+  const grupo = "rec_" + raizId;
+  const registros = plano.datas.map((data, i) => {
+    // As próximas datas recebem apenas dados de cadastro, nunca cobrança,
+    // checklist concluído, vínculo de orçamento ou registro de atendimento.
+    const a = i === 0 ? Object.assign({}, dados) : {
+      petId: dados.petId || "", clienteId: dados.clienteId || "", titulo: dados.titulo || "",
+      data: data, hora: dados.hora, tipo: dados.tipo, status: "Agendado",
+      profissional: dados.profissional || "", valor: dados.valor || 0,
+      levaTraz: !!dados.levaTraz, obs: dados.obs || "",
+      servicoIds: (dados.servicoIds || []).slice(), checklist: []
+    };
+    a.id = i === 0 ? raizId : grupo + "_" + data;
+    a.data = data;
+    a.recorrenciaId = grupo;
+    a.recorrenciaIntervaloDias = intervalo;
+    a.recorrenciaAte = fim;
+    a.recorrenciaDataOriginal = data;
+    return a;
+  });
+  const conflito = registros.find(novo => DB.agenda.some(atual => {
+    if (atual.id === novo.id || atual.status === "Cancelado") return false;
+    const mesmoAlvo = novo.petId ? atual.petId === novo.petId
+      : !atual.petId && String(atual.titulo || "").trim() === String(novo.titulo || "").trim();
+    return mesmoAlvo && atual.data === novo.data && atual.hora === novo.hora;
+  }));
+  if (conflito) return { erro: "Já existe um agendamento para este pet ou compromisso em " + fmtD(conflito.data) + " às " + conflito.hora + ". Ajuste a repetição. Nenhuma data foi criada." };
+  return { registros: registros };
+}
+function proximasRepeticoesAgenda(a) {
+  if (!a || !a.recorrenciaId) return [];
+  const agora = nowDT();
+  const cobrados = new Set(DB.financeiro.map(l => l.ref).filter(Boolean));
+  return DB.agenda.filter(item => item.recorrenciaId === a.recorrenciaId
+    && (item.status === "Agendado" || item.status === "Confirmado")
+    && item.data + "T" + item.hora >= agora && !cobrados.has(item.id));
+}
+function encerrarRepeticaoAgenda(id) {
+  if (!temAcesso() || !pode("agenda")) { toast("Sem permissão para alterar a agenda.", "err"); return; }
+  const a = DB.agenda.find(item => item.id === id);
+  const proximas = proximasRepeticoesAgenda(a);
+  if (!proximas.length) { toast("Não há próximas repetições disponíveis para cancelar."); return; }
+  confirmar("Cancelar as próximas " + proximas.length + " repetição(ões) desta série? Agendamentos anteriores, em atendimento, concluídos e com lançamento financeiro serão mantidos.", () => {
+    if (!temAcesso() || !pode("agenda")) { toast("Sem permissão para alterar a agenda.", "err"); return; }
+    // Reconsulta após a confirmação para respeitar mudanças de outro aparelho.
+    const atual = DB.agenda.find(item => item.id === id);
+    const itens = proximasRepeticoesAgenda(atual);
+    itens.forEach(item => { item.status = "Cancelado"; item.recorrenciaEncerrada = true; });
+    if (!itens.length) { toast("As próximas repetições já foram alteradas."); return; }
+    save(); render(); toast(itens.length + " repetição(ões) cancelada(s)", "ok");
+  }, "Cancelar próximas repetições");
+}
 function formAgendamento(id, defaults) {
+  if (!temAcesso() || !pode("agenda")) { toast("Sem permissão para alterar a agenda.", "err"); return; }
   const a = id ? DB.agenda.find(x => x.id === id) : Object.assign({ data: todayISO(), hora: "09:00", status: "Agendado", tipo: "Consulta", profissional: nomeUsuario() }, defaults || {});
+  if (!a) { toast("Agendamento não encontrado.", "err"); return; }
   if (!DB.pets.length) { toast("Cadastre um pet primeiro.", "err"); return; }
+  const raizId = id || uid();
+  let registros = null;
+  let extra;
+  if (a.recorrenciaId) {
+    extra = '<div class="sheet" style="margin-top:16px"><b>' + esc(resumoRepeticaoAgenda(a)) + '</b>'
+      + '<p class="muted" style="font-size:13px;margin:6px 0 0">Salvar ou excluir aqui afeta somente esta ocorrência. As demais datas já criadas permanecem na agenda.</p>'
+      + (proximasRepeticoesAgenda(a).length ? '<button type="button" class="btn sm dang" id="agrec-encerrar" style="margin-top:10px">Cancelar próximas repetições</button>' : '') + '</div>';
+  } else {
+    extra = '<div class="sheet" style="margin-top:16px">'
+      + '<label class="check" style="padding-top:0"><input type="checkbox" id="agrec-ativo"> <b>Repetir este agendamento</b></label>'
+      + '<div id="agrec-campos" hidden style="margin-top:14px"><div class="formgrid">'
+      + '<div class="c6"><div class="field"><label for="agrec-dias">Repetir a cada (dias)</label><input type="number" id="agrec-dias" min="1" max="3650" step="1" value="7" disabled></div></div>'
+      + '<div class="c6"><div class="field"><label for="agrec-fim">Repetir até</label><input type="date" id="agrec-fim" value="' + addDays(a.data, 90) + '" disabled></div></div></div>'
+      + '<p id="agrec-resumo" role="status" style="font-size:13px;margin:12px 0 0"></p>'
+      + '<p class="muted" style="font-size:12px;margin:6px 0 0">Inclui a primeira data. As próximas serão criadas como Agendado, no mesmo horário e com os mesmos dados. Não gera cobranças automaticamente.</p></div></div>';
+  }
   openForm({
     title: id ? "Editar agendamento" : "Novo agendamento",
     values: a,
@@ -2177,13 +2267,63 @@ function formAgendamento(id, defaults) {
       { k: "levaTraz", label: "Leva e traz", type: "checkbox", col: "c3" },
       { k: "obs", label: "Observações", type: "textarea", col: "c12", placeholder: "Tosa na máquina 3, pet agitado, etc." }
     ],
-    del: id ? () => { DB.agenda = DB.agenda.filter(x => x.id !== id); save(); render(); toast("Agendamento excluído"); } : null,
-    validate: (d) => (!d.petId && !d.titulo) ? "Escolha o pet ou escreva uma descrição para o compromisso." : null,
-    onSave: (d) => {
+    extra: extra,
+    onMount: (o) => {
+      const encerrar = $("#agrec-encerrar", o);
+      if (encerrar) encerrar.onclick = () => encerrarRepeticaoAgenda(id);
+      const ativo = $("#agrec-ativo", o);
+      if (!ativo) return;
+      const dias = $("#agrec-dias", o), fim = $("#agrec-fim", o), data = $("#f_data", o);
+      let fimAutomatico = true;
+      const atualizar = () => {
+        $("#agrec-campos", o).hidden = !ativo.checked;
+        dias.disabled = fim.disabled = !ativo.checked;
+        dias.required = fim.required = ativo.checked;
+        fim.min = data.value;
+        if (!ativo.checked) return;
+        const plano = datasRepeticaoAgenda(data.value, Number(dias.value), fim.value);
+        const resumo = $("#agrec-resumo", o);
+        resumo.textContent = plano.erro || (plano.datas.length + " agendamentos, de " + fmtD(plano.datas[0]) + " a " + fmtD(plano.datas[plano.datas.length - 1]) + ".");
+        resumo.style.color = plano.erro ? "var(--danger)" : "var(--ink-2)";
+      };
+      ativo.onchange = dias.oninput = atualizar;
+      fim.oninput = () => { fimAutomatico = false; atualizar(); };
+      data.addEventListener("input", () => { if (fimAutomatico && data.value) fim.value = addDays(data.value, 90); atualizar(); });
+      atualizar();
+    },
+    del: id ? () => {
+      if (!temAcesso() || !pode("agenda")) { toast("Sem permissão para alterar a agenda.", "err"); return; }
+      DB.agenda = DB.agenda.filter(x => x.id !== id); save(); render(); toast("Agendamento excluído");
+    } : null,
+    validate: (d, o) => {
+      registros = null;
+      if (!temAcesso() || !pode("agenda")) return "Sem permissão para alterar a agenda.";
+      if (id && !DB.agenda.some(item => item.id === id)) return "Este agendamento foi removido em outro aparelho. Atualize a agenda.";
+      if (!d.petId && !d.titulo) return "Escolha o pet ou escreva uma descrição para o compromisso.";
       const pet = Q.pet(d.petId);
       d.clienteId = pet ? pet.clienteId : "";
-      if (id) Object.assign(a, d);
-      else { d.id = uid(); DB.agenda.push(d); }
+      const ativo = $("#agrec-ativo", o);
+      if (ativo && ativo.checked) {
+        const plano = planejarRepeticaoAgenda(d, Number($("#agrec-dias", o).value), $("#agrec-fim", o).value, raizId);
+        if (plano.erro) return plano.erro;
+        registros = plano.registros;
+      }
+      return null;
+    },
+    onSave: (d) => {
+      if (!temAcesso() || !pode("agenda")) { toast("Sem permissão para alterar a agenda.", "err"); return; }
+      const pet = Q.pet(d.petId);
+      d.clienteId = pet ? pet.clienteId : "";
+      if (registros) {
+        const existentes = new Map(DB.agenda.map(item => [item.id, item]));
+        registros.forEach(item => {
+          if (item.id === id) Object.assign(existentes.get(id), item);
+          else if (!existentes.has(item.id)) { DB.agenda.push(item); existentes.set(item.id, item); }
+        });
+        save(); render(); toast(registros.length + " agendamentos na recorrência", "ok"); return;
+      }
+      if (id) Object.assign(DB.agenda.find(item => item.id === id), d);
+      else if (!DB.agenda.some(item => item.id === raizId)) { d.id = raizId; DB.agenda.push(d); }
       save(); render(); toast("Agendamento salvo", "ok");
     }
   });
@@ -2199,6 +2339,9 @@ function abrirAgendamento(id) {
     + '<dt>Serviço</dt><dd>' + esc(a.tipo) + (a.valor ? " · " + money(a.valor) : "") + '</dd>'
     + '<dt>Profissional</dt><dd>' + esc(a.profissional || "—") + '</dd>'
     + '<dt>Situação</dt><dd>' + statusPill(a.status) + (a.levaTraz ? ' <span class="pill info">leva e traz</span>' : "") + '</dd>'
+    + (a.recorrenciaId ? '<dt>Repetição</dt><dd>' + esc(resumoRepeticaoAgenda(a))
+      + '<div class="muted" style="font-size:12px">Cada data pode ser alterada ou excluída separadamente.</div>'
+      + (proximasRepeticoesAgenda(a).length ? '<button type="button" class="btn sm dang" id="agrec-parar" style="margin-top:8px">Cancelar próximas repetições</button>' : '') + '</dd>' : '')
     + (a.obs ? '<dt>Obs.</dt><dd>' + esc(a.obs) + '</dd>' : "") + '</dl>'
     + '<div class="sec-title"><h2 style="font-size:14px">Mudar situação</h2><div class="line"></div></div>'
     + '<div class="row">' + STATUS_AG.map(s => '<button class="chip' + (s === a.status ? " on" : "") + '" data-st="' + esc(s) + '">' + esc(s) + '</button>').join("") + '</div>';
@@ -2215,6 +2358,7 @@ function abrirAgendamento(id) {
       });
       $("#wag", o).onclick = () => whatsAgenda(a);
       $("#edt", o).onclick = () => { closeModal(); formAgendamento(id); };
+      const parar = $("#agrec-parar", o); if (parar) parar.onclick = () => encerrarRepeticaoAgenda(id);
       const c = $("#com", o); if (c) c.onclick = () => { closeModal(); comandaBT(a.id); };
       const t = $("#atd", o); if (t) t.onclick = () => { closeModal(); formAtendimento(null, { petId: a.petId, clienteId: a.clienteId, tipo: a.tipo, valor: a.valor, ref: a.id }); };
     }
